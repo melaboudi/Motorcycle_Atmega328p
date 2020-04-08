@@ -140,12 +140,12 @@ void loop() {
       if (getGpsData()) {
         if ((t2 - t1) >= ti) {insertMem();t1 = t2;}
         if ((t1 - t3) >= te) {
-          if (getCounter() <= 10) {httpPostAll();} else {httpPostLimited();}
+          if (getCounter() <= 10) {if(!httpPostAll()){resetSS();}} else {if(!httpPostLimited()){resetSS();}}
         }
       }else {resetSS();delay(10000);} 
   } else {turnOnGns(); delay(1000);}
   } else {
-      if(getCounter()==0){httpPost1P();}else {httpPostAll();}
+      if(getCounter()==0){httpPost1P();}else {if(!httpPostAll()){resetSS();}}
     httpPostSleeping();powerDown(); 
     attachPinChangeInterrupt(digitalPinToPinChangeInterrupt(intPin), IntRoutine, RISING);
     Serial.flush();
@@ -180,8 +180,8 @@ bool httpPostAll() {
   bool OkToSend = true;
   if (sendAtFram(3000, 31254, 13, "OK", "ERROR", 5)) { //"AT+HTTPINIT"
     if (sendAtFram(3000, 31267, 19, "OK", "ERROR", 5)) { //"AT+HTTPPARA=\"CID\",1"
-      if (sendAtFram(60000, 31609, 73, "OK", "ERROR", 5)) { //"AT+HTTPPARA=\"URL\",\"http://casa-interface.casabaia.ma/commandes.php\""
-        Serial.setTimeout(90000);
+      if (sendAtFram(10000, 31609, 73, "OK", "ERROR", 5)) { //"AT+HTTPPARA=\"URL\",\"http://casa-interface.casabaia.ma/commandes.php\""
+        Serial.setTimeout(30000);
         flushSim();
         Serial.print("AT+HTTPDATA=");
         delay(100);
@@ -189,7 +189,7 @@ bool httpPostAll() {
     uint16_t Size = (nb * (SizeRec + 1)) + (nb * 8) - 1 + 2;
         Serial.print(Size);
         Serial.print(",");
-        uint32_t maxTime = 90000;
+        uint32_t maxTime = 30000;
         Serial.println(maxTime);
         Serial.findUntil("DOWNLOAD", "ERROR");
         Serial.print("[");
@@ -219,31 +219,25 @@ bool httpPostAll() {
     } else OkToSend = false;
   } else OkToSend = false;
   if (OkToSend) {
-    if (fireHttpAction(60000, "AT+HTTPACTION=", ",200,", "ERROR", 1)) {
-      httpPostFail = 0; 
-    httpPostSuccess++;
-      clearMemory(getCounter() * 66); 
-    clearMemoryDebug(32003); 
-    t3 = t1;
-    return true;
-    } else {
-      return false;
-    }
-  }
+    if (fireHttpAction(30000, "AT+HTTPACTION=", ",200,", "ERROR", 1)) {httpPostFail = 0;httpPostSuccess++;
+    clearMemory(getCounter() * 66); clearMemoryDebug(32003); 
+    t3 = t1; return true;
+    } else {  return false;}
+  }else return false;
 }
 bool httpPostLimited() {
   bool OkToSend = true;
   if (sendAtFram(3000, 31254, 13, "OK", "ERROR", 5)) { //"AT+HTTPINIT"
     if (sendAtFram(3000, 31267, 19, "OK", "ERROR", 5)) { //"AT+HTTPPARA=\"CID\",1"
-      if (sendAtFram(60000, 31609, 73, "OK", "ERROR", 5)) { //"AT+HTTPPARA=\"URL\",\"http://casa-interface.casabaia.ma/commandes.php\""
-        Serial.setTimeout(90000);
+      if (sendAtFram(10000, 31609, 73, "OK", "ERROR", 5)) { //"AT+HTTPPARA=\"URL\",\"http://casa-interface.casabaia.ma/commandes.php\""
+        Serial.setTimeout(30000);
         flushSim();
         Serial.print("AT+HTTPDATA=");
         delay(100);
         uint16_t Size = (limitToSend * (SizeRec + 1)) + (limitToSend * 8) - 1 + 2;
         Serial.print(Size);
         Serial.print(",");
-        uint32_t maxTime = 90000;
+        uint32_t maxTime = 30000;
         Serial.println(maxTime);
         Serial.findUntil("DOWNLOAD", "ERROR");
         Serial.print("[");
@@ -273,28 +267,26 @@ bool httpPostLimited() {
     } else OkToSend = false;
   } else OkToSend = false;
   if (OkToSend) {
-    if (fireHttpAction(60000, "AT+HTTPACTION=", ",200,", "ERROR", 1)) {
-    decrementCounter(limitToSend);
+    if (fireHttpAction(30000, "AT+HTTPACTION=", ",200,", "ERROR", 1)) {
+        decrementCounter(limitToSend);
         getWriteFromFramFromZero(limitToSend * 66, getCounter() * 66);
     return true;
-    } else {
-      return false;
-    }
-  }
+    } else {return false;}
+  }else return false;
 }
 bool httpPostWakeUp() {
   bool OkToSend = true;
   if (sendAtFram(3000, 31254, 13, "OK", "ERROR", 5)) { //"AT+HTTPINIT"
     if (sendAtFram(3000, 31267, 19, "OK", "ERROR", 5)) { //"AT+HTTPPARA=\"CID\",1"
-      if (sendAtFram(60000, 31609, 73, "OK", "ERROR", 5)) { //"AT+HTTPPARA=\"URL\",\"http://casa-interface.casabaia.ma/commandes.php\""
-        Serial.setTimeout(90000);
+      if (sendAtFram(10000, 31609, 73, "OK", "ERROR", 5)) { //"AT+HTTPPARA=\"URL\",\"http://casa-interface.casabaia.ma/commandes.php\""
+        Serial.setTimeout(20000);
         flushSim();
         Serial.print("AT+HTTPDATA=");
         delay(100);
         uint16_t Size = 26;
         Serial.print(Size);
         Serial.print(",");
-        uint32_t maxTime = 90000;
+        uint32_t maxTime = 20000;
         Serial.println(maxTime);
         Serial.findUntil("DOWNLOAD", "ERROR");
         //String dataToSend="";
@@ -309,24 +301,22 @@ bool httpPostWakeUp() {
   if (OkToSend) {
     if (fireHttpAction(60000, "AT+HTTPACTION=", ",200,", "ERROR", 1)) {
       return true;
-    } else {
-      return false;
-    }
-  }
+    } else {return false;}
+  }else return false;
 }
 bool httpPostSleeping() {
   bool OkToSend = true;
   if (sendAtFram(3000, 31254, 13, "OK", "ERROR", 5)) { //"AT+HTTPINIT"
     if (sendAtFram(3000, 31267, 19, "OK", "ERROR", 5)) { //"AT+HTTPPARA=\"CID\",1"
-      if (sendAtFram(60000, 31609, 73, "OK", "ERROR", 5)) { //"AT+HTTPPARA=\"URL\",\"http://casa-interface.casabaia.ma/commandes.php\""
-        Serial.setTimeout(90000);
+      if (sendAtFram(10000, 31609, 73, "OK", "ERROR", 5)) { //"AT+HTTPPARA=\"URL\",\"http://casa-interface.casabaia.ma/commandes.php\""
+        Serial.setTimeout(20000);
         flushSim();
         Serial.print("AT+HTTPDATA=");
         delay(100);
         uint16_t Size = 26;
         Serial.print(Size);
         Serial.print(",");
-        uint32_t maxTime = 90000;
+        uint32_t maxTime = 20000;
         Serial.println(maxTime);
         Serial.findUntil("DOWNLOAD", "ERROR");
         //String dataToSend="";
@@ -339,12 +329,12 @@ bool httpPostSleeping() {
     } else OkToSend = false;
   } else OkToSend = false;
   if (OkToSend) {
-    if (fireHttpAction(60000, "AT+HTTPACTION=", ",200,", "ERROR", 1)) {
+    if (fireHttpAction(20000, "AT+HTTPACTION=", ",200,", "ERROR", 1)) {
       return true;
     } else {
       return false;
     }
-  }
+  }else return false;
 }
 void httpPost1P() {
   sendAtFram(3000, 31241, 13, "OK", "ERROR", 5);
@@ -354,15 +344,15 @@ void httpPost1P() {
     OkToSend = true;
     if (sendAtFram(3000, 31254, 13, "OK", "ERROR", 5)) { //"AT+HTTPINIT"
     if (sendAtFram(3000, 31267, 19, "OK", "ERROR", 5)) { //"AT+HTTPPARA=\"CID\",1"
-      if (sendAtFram(60000, 31609, 73, "OK", "ERROR", 5)) { //"AT+HTTPPARA=\"URL\",\"http://casa-interface.casabaia.ma/commandes.php\""
-    Serial.setTimeout(90000);
+      if (sendAtFram(10000, 31609, 73, "OK", "ERROR", 5)) { //"AT+HTTPPARA=\"URL\",\"http://casa-interface.casabaia.ma/commandes.php\""
+    Serial.setTimeout(30000);
     flushSim();
     Serial.print("AT+HTTPDATA=");
     delay(100);
     Size = 76;
     Serial.print(Size);
     Serial.print(",");
-    maxTime = 60000;
+    maxTime = 30000;
     Serial.println(maxTime);
     Serial.findUntil("DOWNLOAD", "ERROR");
         Serial.print("[{\"P\":\"");
