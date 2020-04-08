@@ -142,7 +142,7 @@ void loop() {
         if ((t1 - t3) >= te) {
           if (getCounter() <= 10) {httpPostAll();} else {httpPostLimited();}
         }
-      }else {resetSS();} 
+      }else {resetSS();delay(10000);} 
   } else {turnOnGns(); delay(1000);}
   } else {
       if(getCounter()==0){httpPost1P();}else {httpPostAll();}
@@ -810,19 +810,10 @@ void incrementValue(uint16_t position, uint8_t largeur) {
   writeDataFramDebug(complete(String(countVal), largeur).c_str(), position);
 }
 void resetSS() {
-  // pinMode(5, OUTPUT);//PWR KEY
-  // digitalWrite(5, LOW);
-  // delay(2000);
-  // pinMode(5, INPUT_PULLUP);
-  // delay(100);
-  // powerUp();
-  // Serial.begin(4800);
   cfunReset();
   turnOnGns();
-  //imei = returnImei();
   while (getGsmStat() != 1) {delay(500);}
   gprsOn();
-  //started = false;
   restarted=true;
   gnsFailCounter = 0;
   gpsFailCounter = 0;
