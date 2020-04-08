@@ -138,8 +138,8 @@ void loop() {
   enablePinChangeInterrupt(digitalPinToPinChangeInterrupt(intPin));
   if(wakeUp){httpPostWakeUp();wakeUp=false;}
   if (!digitalRead(8)) {
-    if (getGnsStat() == 1) {
-      if (getGpsData()) {
+    if (getGnsStat() == 1) {gnsFailCounter = 0;
+      if (getGpsData()) { gpsFailCounter = 0; 
         if ((t2 - t1) >= ti) {insertMem();t1 = t2;}
         if ((t1 - t3) >= te) {
           if (getCounter() <= 10) {
@@ -154,7 +154,7 @@ void loop() {
             }else if((!restarted)&&(!started)){delay(1000);gpsFailCounter++;trace(unixTimeInt, 2);if (gpsFailCounter >= 10) {resetSS();}
               }
     }
-  } else {turnOnGns(); delay(1000);}
+  } else {turnOnGns(); delay(1000);if (gnsFailCounter >= 2) {resetSS();}}
   } else {
       if(getCounter()==0){httpPost1P();}else {httpPostAll();}
     httpPostSleeping();powerDown(); 
