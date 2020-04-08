@@ -133,8 +133,6 @@ void setup() {
 }
 
 void loop() {
-  delay(100);
-  delay(100);
   enablePinChangeInterrupt(digitalPinToPinChangeInterrupt(intPin));
   if(wakeUp){httpPostWakeUp();wakeUp=false;}
   if (!digitalRead(8)) {
