@@ -142,7 +142,7 @@ void loop() {
         if ((t1 - t3) >= te) {
           if (getCounter() <= 10) {httpPostAll();} else {httpPostLimited();}
         }
-      } 
+      }else {resetSS();} 
   } else {turnOnGns(); delay(1000);}
   } else {
       if(getCounter()==0){httpPost1P();}else {httpPostAll();}
@@ -820,13 +820,10 @@ void resetSS() {
   cfunReset();
   turnOnGns();
   //imei = returnImei();
-  while (getGsmStat() != 1) {
-    delay(500);
-  }
+  while (getGsmStat() != 1) {delay(500);}
   gprsOn();
   //started = false;
   restarted=true;
-  /* previousMillisGps = currentMillis; */
   gnsFailCounter = 0;
   gpsFailCounter = 0;
   httpActionFail = 0;
