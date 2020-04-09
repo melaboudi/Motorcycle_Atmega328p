@@ -144,17 +144,22 @@ void loop() {
         if ((t1 - t3) >= te) {
           if (getCounter() <= 10) {
             if (!httpPostAll()) {httpPostFail++; trace(unixTimeInt, 3);
-              if (httpPostFail >= 2) {resetSS();}
-            }
-          } else {httpPostLimited();}
+              if (httpPostFail == 2) {resetSS();}
+            }else {httpPostFail=0;}
+          } else {
+            if (!httpPostLimited()) {httpPostFail++; trace(unixTimeInt, 3);
+              if (httpPostFail == 2) {resetSS();}
+            }else {httpPostFail=0;}
+          }
         }
       } else {
-        if(restarted){delay(5000);ReStartCounter++;if (ReStartCounter >= 10) {resetSS();}
-          }else if (started){delay(60000);FirstStartCounter++;if (FirstStartCounter >= 2) {resetSS();}
-            }else if((!restarted)&&(!started)){delay(1000);gpsFailCounter++;trace(unixTimeInt, 2);if (gpsFailCounter >= 10) {resetSS();}
+        if(restarted){if (ReStartCounter == 2) {resetSS();}else {delay(1000);ReStartCounter++;}
+          }else if (started){if (FirstStartCounter == 1) {resetSS();}else{delay(60000);FirstStartCounter++;}
+            }else if((!restarted)&&(!started)){if (gpsFailCounter == 2) {resetSS();}else {delay(1000);gpsFailCounter++;trace(unixTimeInt, 2);}
+            
               }
     }
-  } else {turnOnGns(); delay(1000);if (gnsFailCounter >= 2) {resetSS();}}
+  } else {if (gnsFailCounter == 2) {resetSS();} else {turnOnGns(); delay(1000);gnsFailCounter++;}}
   } else {
       if(getCounter()==0){httpPost1P();}else {httpPostAll();}
     httpPostSleeping();powerDown(); 
@@ -291,7 +296,7 @@ bool httpPostLimited() {
     } else {
       return false;
     }
-  }
+  }else {return false;}
 }
 bool httpPostWakeUp() {
   bool OkToSend = true;
