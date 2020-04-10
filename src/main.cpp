@@ -439,24 +439,22 @@ uint8_t getGnsStat() {
   } else return 0;
 }
 bool getGpsData() {
-  bool goodChar=false;
+  bool goodChar=true;
   fixStatus = gpsTime = latitude = longitude = used_satellites = viewed_satellites = speed = " ";
   Serial.setTimeout(2000);
   flushSim();
   char gpsData[120] = {0};
   Serial.println("AT+CGNSINF");
   Serial.readBytesUntil('O', gpsData, 119);
-  uint8_t gpsDataSize=strlen(gpsData);
-  for (uint8_t i = 0; i < gpsDataSize; i++)
-  {  char Buffer[6] = {0};
-     Buffer[0]=gpsData[i];
-     Serial.print(Buffer);
-     if (isAlphaNumeric(Buffer[0])||(strcmp(Buffer,".")==0)||(strcmp(Buffer,"-")==0)) {goodChar=true;}else
-     {
-       goodChar=false;
-       break;
-     }
-     }
+  // for (uint16_t i = 0; i < strlen(gpsData); i++)
+  // { char Buffer[6] = {0};
+  //   Buffer[0]=gpsData[i];
+  //   if (isAlphaNumeric(Buffer)/*||(strcmp(Buffer,".")==0)||(strcmp(Buffer,"-")==0)*/) {goodChar=true;}else
+  //    {
+  //      goodChar=false;
+  //      break;
+  //    }
+  // }
   if(goodChar){
     String gpsdatastr = String(gpsData);
 
@@ -572,7 +570,7 @@ void sendAtCom(char *AtCom) {
   String tempGSM = Serial.readString();
 }
 String returnImei() {
-  flushSim();
+  flushSim(); 
   Serial.println("AT+GSN");
   String tempGSM = Serial.readString();
   uint8_t counter = 0;
@@ -585,14 +583,12 @@ String returnImei() {
     counter++;
     if (counter >= 6) {
       counter = 0;
-      simHardReset();
+      resetSS();
     }
   }
   String imei1 = strstr(tempGSM.c_str(), "8");
   String imei2 = imei1.substring(0, 15);
   return imei2;
-  // String imeiFake = "869170031699599";
-  //return imeiFake;
 }
 uint8_t getGsmStat() {
   flushSim();
