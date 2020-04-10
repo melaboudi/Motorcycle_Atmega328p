@@ -439,118 +439,132 @@ uint8_t getGnsStat() {
   } else return 0;
 }
 bool getGpsData() {
+  bool goodChar=false;
   fixStatus = gpsTime = latitude = longitude = used_satellites = viewed_satellites = speed = " ";
   Serial.setTimeout(2000);
   flushSim();
   char gpsData[120] = {0};
   Serial.println("AT+CGNSINF");
   Serial.readBytesUntil('O', gpsData, 119);
+  uint8_t gpsDataSize=strlen(gpsData);
+  for (uint8_t i = 0; i < gpsDataSize; i++)
+  {  char Buffer[6] = {0};
+     Buffer[0]=gpsData[i];
+     Serial.print(Buffer);
+     if (isAlphaNumeric(Buffer[0])||(strcmp(Buffer,".")==0)||(strcmp(Buffer,"-")==0)) {goodChar=true;}else
+     {
+       goodChar=false;
+       break;
+     }
+     }
+  if(goodChar){
+    String gpsdatastr = String(gpsData);
 
-  String gpsdatastr = String(gpsData);
+    uint8_t ind1 = gpsdatastr.indexOf(',');
+    //  String mode = gpsdatastr.substring(0, ind1);
 
-  uint8_t ind1 = gpsdatastr.indexOf(',');
-  //  String mode = gpsdatastr.substring(0, ind1);
+    uint8_t ind2 = gpsdatastr.indexOf(',', ind1 + 1);
+    fixStatus = gpsdatastr.substring(ind1 + 1, ind2);
+    fixStatus = fixStatus.substring(0, 1);
 
-  uint8_t ind2 = gpsdatastr.indexOf(',', ind1 + 1);
-  fixStatus = gpsdatastr.substring(ind1 + 1, ind2);
-  fixStatus = fixStatus.substring(0, 1);
+    uint8_t ind3 = gpsdatastr.indexOf(',', ind2 + 1);
+    String utctime = gpsdatastr.substring(ind2 + 1, ind3);
+    timestamp32bits stamp = timestamp32bits();
 
-  uint8_t ind3 = gpsdatastr.indexOf(',', ind2 + 1);
-  String utctime = gpsdatastr.substring(ind2 + 1, ind3);
-  timestamp32bits stamp = timestamp32bits();
+    unixTimeInt = stamp.timestamp(
+                    (utctime.substring(2, 4)).toInt(),
+                    (utctime.substring(4, 6)).toInt(),
+                    (utctime.substring(6, 8)).toInt(),
+                    (utctime.substring(8, 10)).toInt(),
+                    (utctime.substring(10, 12)).toInt(),
+                    (utctime.substring(12, 14)).toInt());
+    lastUnixTime = String(unixTimeInt);
+    lastUnixTime = lastUnixTime.substring(0, 10);
 
-  unixTimeInt = stamp.timestamp(
-                  (utctime.substring(2, 4)).toInt(),
-                  (utctime.substring(4, 6)).toInt(),
-                  (utctime.substring(6, 8)).toInt(),
-                  (utctime.substring(8, 10)).toInt(),
-                  (utctime.substring(10, 12)).toInt(),
-                  (utctime.substring(12, 14)).toInt());
-  lastUnixTime = String(unixTimeInt);
-  lastUnixTime = lastUnixTime.substring(0, 10);
+    unsigned long gpsTimeInt = unixTimeInt - 315961182 ; //315964782 - 3600
+    gpsTime = String(gpsTimeInt);
+    t2 = gpsTimeInt;
 
-  unsigned long gpsTimeInt = unixTimeInt - 315961182 ; //315964782 - 3600
-  gpsTime = String(gpsTimeInt);
-  t2 = gpsTimeInt;
+    uint8_t ind4 = gpsdatastr.indexOf(',', ind3 + 1);
+    latitude = gpsdatastr.substring(ind3 + 1, ind4);
+    //latitude = latitude.substring(0, 9);
+    while (strlen(latitude.c_str()) < 10) {
+      latitude += '0';
+    }
 
-  uint8_t ind4 = gpsdatastr.indexOf(',', ind3 + 1);
-  latitude = gpsdatastr.substring(ind3 + 1, ind4);
-  //latitude = latitude.substring(0, 9);
-  while (strlen(latitude.c_str()) < 10) {
-    latitude += '0';
-  }
+    uint8_t ind5 = gpsdatastr.indexOf(',', ind4 + 1);
+    longitude = gpsdatastr.substring(ind4 + 1, ind5);
+    while (strlen(longitude.c_str()) < 11) {
+      longitude += '0';
+    }
+    uint8_t ind6 = gpsdatastr.indexOf(',', ind5 + 1);
+    //  String altitude = gpsdatastr.substring(ind5 + 1, ind6);
 
-  uint8_t ind5 = gpsdatastr.indexOf(',', ind4 + 1);
-  longitude = gpsdatastr.substring(ind4 + 1, ind5);
-  while (strlen(longitude.c_str()) < 11) {
-    longitude += '0';
-  }
-  uint8_t ind6 = gpsdatastr.indexOf(',', ind5 + 1);
-  //  String altitude = gpsdatastr.substring(ind5 + 1, ind6);
+    uint8_t ind7 = gpsdatastr.indexOf(',', ind6 + 1);
+    speed = gpsdatastr.substring(ind6 + 1, ind7);
+    speed = speed.substring(0, 6);
+    while (strlen(speed.c_str()) < 6) {
+      speed = '0' + speed;
+    }
 
-  uint8_t ind7 = gpsdatastr.indexOf(',', ind6 + 1);
-  speed = gpsdatastr.substring(ind6 + 1, ind7);
-  speed = speed.substring(0, 6);
-  while (strlen(speed.c_str()) < 6) {
-    speed = '0' + speed;
-  }
+    uint8_t ind8 = gpsdatastr.indexOf(',', ind7 + 1);
+    course = gpsdatastr.substring(ind7 + 1, ind8);
+    course = course.substring(0, 6);
+    while (strlen(course.c_str()) < 6) {
+      course = '0' + course;
+    }
 
-  uint8_t ind8 = gpsdatastr.indexOf(',', ind7 + 1);
-  course = gpsdatastr.substring(ind7 + 1, ind8);
-  course = course.substring(0, 6);
-  while (strlen(course.c_str()) < 6) {
-    course = '0' + course;
-  }
+    uint8_t ind9 = gpsdatastr.indexOf(',', ind8 + 1);
+    //  String fixmode = gpsdatastr.substring(ind8 + 1, ind9);
+    uint8_t ind10 = gpsdatastr.indexOf(',', ind9 + 1);
+    //  String reserved1 = gpsdatastr.substring(ind9 + 1, ind10);
+    uint8_t ind11 = gpsdatastr.indexOf(',', ind10 + 1);
+    //  String HDOP = gpsdatastr.substring(ind10 + 1, ind11);
 
-  uint8_t ind9 = gpsdatastr.indexOf(',', ind8 + 1);
-  //  String fixmode = gpsdatastr.substring(ind8 + 1, ind9);
-  uint8_t ind10 = gpsdatastr.indexOf(',', ind9 + 1);
-  //  String reserved1 = gpsdatastr.substring(ind9 + 1, ind10);
-  uint8_t ind11 = gpsdatastr.indexOf(',', ind10 + 1);
-  //  String HDOP = gpsdatastr.substring(ind10 + 1, ind11);
+    uint8_t ind12 = gpsdatastr.indexOf(',', ind11 + 1);
+    pdop = gpsdatastr.substring(ind11 + 1, ind12);
+    pdop = pdop.substring(0, 4);
+    while (strlen(pdop.c_str()) < 4) {
+      pdop = '0' + pdop;
+    }
 
-  uint8_t ind12 = gpsdatastr.indexOf(',', ind11 + 1);
-  pdop = gpsdatastr.substring(ind11 + 1, ind12);
-  pdop = pdop.substring(0, 4);
-  while (strlen(pdop.c_str()) < 4) {
-    pdop = '0' + pdop;
-  }
+    uint8_t ind13 = gpsdatastr.indexOf(',', ind12 + 1);
+    //  String VDOP = gpsdatastr.substring(ind12 + 1, ind13);
+    uint8_t ind14 = gpsdatastr.indexOf(',', ind13 + 1);
+    //  String reserved2 = gpsdatastr.substring(ind13 + 1, ind14);
+    uint8_t ind15 = gpsdatastr.indexOf(',', ind14 + 1);
+    String viewed_satellites = gpsdatastr.substring(ind14 + 1, ind15);
+    while (strlen(viewed_satellites.c_str()) < 2) {
+      viewed_satellites = '0' + viewed_satellites;
+    }
+    uint8_t ind16 = gpsdatastr.indexOf(',', ind15 + 1);
 
-  uint8_t ind13 = gpsdatastr.indexOf(',', ind12 + 1);
-  //  String VDOP = gpsdatastr.substring(ind12 + 1, ind13);
-  uint8_t ind14 = gpsdatastr.indexOf(',', ind13 + 1);
-  //  String reserved2 = gpsdatastr.substring(ind13 + 1, ind14);
-  uint8_t ind15 = gpsdatastr.indexOf(',', ind14 + 1);
-  String viewed_satellites = gpsdatastr.substring(ind14 + 1, ind15);
-  while (strlen(viewed_satellites.c_str()) < 2) {
-    viewed_satellites = '0' + viewed_satellites;
-  }
-  uint8_t ind16 = gpsdatastr.indexOf(',', ind15 + 1);
+    used_satellites = gpsdatastr.substring(ind15 + 1, ind16);
+    used_satellites = used_satellites.substring(0, 2);
+    while (strlen(used_satellites.c_str()) < 2) {
+      used_satellites = '0' + used_satellites;
+    }
 
-  used_satellites = gpsdatastr.substring(ind15 + 1, ind16);
-  used_satellites = used_satellites.substring(0, 2);
-  while (strlen(used_satellites.c_str()) < 2) {
-    used_satellites = '0' + used_satellites;
-  }
-
-  //  uint8_t ind17 = gpsdatastr.indexOf(',', ind16 + 1);
-  ////  String reserved3 = gpsdatastr.substring(ind16 + 1, ind17);
-  //  uint8_t ind18 = gpsdatastr.indexOf(',', ind17 + 1);
-  ////  String N0max = gpsdatastr.substring(ind17 + 1, ind18);
-  //  uint8_t ind19 = gpsdatastr.indexOf(',', ind18 + 1);
-  ////  String HPA = gpsdatastr.substring(ind18 + 1, ind19);
-  //  uint8_t ind20 = gpsdatastr.indexOf(',', ind19 + 1);
-  ////  String VPA = gpsdatastr.substring(ind19);
-  //////////////////////////////////////////////////////////////////
-  if (onOff) {
-    trace(unixTimeInt, 1);
-    onOff = false;
-  }
-  if ((fixStatus.toInt() == 1) && (latitude.toInt() != 0) && (longitude.toInt() != 0)) {
-    started = false;
-  restarted=false;
-    return true;
-  } else return false;
+    //  uint8_t ind17 = gpsdatastr.indexOf(',', ind16 + 1);
+    ////  String reserved3 = gpsdatastr.substring(ind16 + 1, ind17);
+    //  uint8_t ind18 = gpsdatastr.indexOf(',', ind17 + 1);
+    ////  String N0max = gpsdatastr.substring(ind17 + 1, ind18);
+    //  uint8_t ind19 = gpsdatastr.indexOf(',', ind18 + 1);
+    ////  String HPA = gpsdatastr.substring(ind18 + 1, ind19);
+    //  uint8_t ind20 = gpsdatastr.indexOf(',', ind19 + 1);
+    ////  String VPA = gpsdatastr.substring(ind19);
+    //////////////////////////////////////////////////////////////////
+    if (onOff) {
+      trace(unixTimeInt, 1);
+      onOff = false;
+    }
+    if ((fixStatus.toInt() == 1) && (latitude.toInt() != 0) && (longitude.toInt() != 0)) {
+      started = false;
+    restarted=false;
+      return true;
+    } else return false;
+  }else {return false;}
+  
 }
 void sendAtCom(char *AtCom) {
   flushSim();
