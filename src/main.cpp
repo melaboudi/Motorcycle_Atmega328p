@@ -79,7 +79,7 @@ bool turnOnGns();
 uint8_t getGnsStat();
 bool getGpsData();
 void sendAtCom(char *AtCom);
-String returnImei();
+void getImei();
 uint8_t getGsmStat();
 String batteryLevel();
 String rssiLevel();
@@ -126,7 +126,7 @@ void setup() {
   powerUp();
   Serial.begin(4800);
   turnOnGns();
-  imei = returnImei();
+  getImei();
   while (getGsmStat() != 1) {
     delay(500);
   }
@@ -471,7 +471,6 @@ bool getGpsData() {
     fixStatus = gpsdatastr.substring(ind1 + 1, ind2);
     fixStatus = fixStatus.substring(0, 1);
     
-        
     uint8_t ind3 = gpsdatastr.indexOf(',', ind2 + 1);
     String utctime = gpsdatastr.substring(ind2 + 1, ind3);
     timestamp32bits stamp = timestamp32bits();
@@ -585,7 +584,7 @@ void sendAtCom(char *AtCom) {
   Serial.println(AtCom);
   String tempGSM = Serial.readString();
 }
-String returnImei() {
+void getImei() {
   flushSim(); 
   Serial.println("AT+GSN");
   String tempGSM = Serial.readString();
@@ -602,9 +601,8 @@ String returnImei() {
       resetSS();
     }
   }
-  String imei1 = strstr(tempGSM.c_str(), "8");
-  String imei2 = imei1.substring(0, 15);
-  return imei2;
+  imei = strstr(tempGSM.c_str(), "8");
+  imei= imei.substring(0, 15);
 }
 uint8_t getGsmStat() {
   flushSim();
