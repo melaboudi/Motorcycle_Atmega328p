@@ -65,6 +65,8 @@ char newC[3]={0};
 //6  29----5points 8.5secondsSent
 //6  25----4Points 8secondsSend
 uint8_t limitToSend = 5;
+int badCharCounter=0;
+void badCharChecker(String data);
 void IntRoutine(void);
 bool httpPostAll();
 bool httpPostLimited();
@@ -438,24 +440,28 @@ uint8_t getGnsStat() {
     return 1;
   } else return 0;
 }
+void badCharChecker(String data){
+      for (int i = 0; i < strlen(data.c_str()); i++){   
+          if(!isAlphaNumeric(data.c_str()[i])){badCharCounter++;}
+        }
+    }
+// bool isAlphaNumerical(String toCheck){
+//   int badCharCounter=0;
+//   for (uint16_t i = 0; i < sizeof(toCheck); i++)
+//   {   
+//     if ((!isAlphaNumeric(toCheck[i])&&(int(toCheck[i])!=43)&&(int(toCheck[i])!=44)&&(int(toCheck[i])!=45)&&(int(toCheck[i])!=46)&&(int(toCheck[i])!=58)&&(int(toCheck[i])!=10)&&(int(toCheck[i])!=13))) {
+//        badCharCounter++;
+//      }
+//   }
+//   if(badCharCounter>0){return false;}else{return true;}
+// }
 bool getGpsData() {
-  bool goodChar=true;
   fixStatus = gpsTime = latitude = longitude = used_satellites = viewed_satellites = speed = " ";
   Serial.setTimeout(2000);
   flushSim();
   char gpsData[120] = {0};
   Serial.println("AT+CGNSINF");
   Serial.readBytesUntil('O', gpsData, 119);
-  // for (uint16_t i = 0; i < strlen(gpsData); i++)
-  // { char Buffer[6] = {0};
-  //   Buffer[0]=gpsData[i];
-  //   if (isAlphaNumeric(Buffer)/*||(strcmp(Buffer,".")==0)||(strcmp(Buffer,"-")==0)*/) {goodChar=true;}else
-  //    {
-  //      goodChar=false;
-  //      break;
-  //    }
-  // }
-  if(goodChar){
     String gpsdatastr = String(gpsData);
 
     uint8_t ind1 = gpsdatastr.indexOf(',');
@@ -464,7 +470,8 @@ bool getGpsData() {
     uint8_t ind2 = gpsdatastr.indexOf(',', ind1 + 1);
     fixStatus = gpsdatastr.substring(ind1 + 1, ind2);
     fixStatus = fixStatus.substring(0, 1);
-
+    badCharChecker(fixStatus);
+        
     uint8_t ind3 = gpsdatastr.indexOf(',', ind2 + 1);
     String utctime = gpsdatastr.substring(ind2 + 1, ind3);
     timestamp32bits stamp = timestamp32bits();
@@ -478,6 +485,7 @@ bool getGpsData() {
                     (utctime.substring(12, 14)).toInt());
     lastUnixTime = String(unixTimeInt);
     lastUnixTime = lastUnixTime.substring(0, 10);
+    // badCharChecker(lastUnixTime);
 
     unsigned long gpsTimeInt = unixTimeInt - 315961182 ; //315964782 - 3600
     gpsTime = String(gpsTimeInt);
@@ -556,13 +564,11 @@ bool getGpsData() {
       trace(unixTimeInt, 1);
       onOff = false;
     }
-    if ((fixStatus.toInt() == 1) && (latitude.toInt() != 0) && (longitude.toInt() != 0)) {
+    if ((fixStatus.toInt() == 1) && (latitude.toInt() != 0) && (longitude.toInt() != 0)&&badCharCounter==0) {
       started = false;
     restarted=false;
       return true;
-    } else return false;
-  }else {return false;}
-  
+    } else {return false;badCharCounter=0;}  
 }
 void sendAtCom(char *AtCom) {
   flushSim();
