@@ -903,13 +903,13 @@ bool fireHttpAction(long timeout, char* Commande, char* Rep, char* Error, int nb
   Serial.print(Commande);
   Serial.println(1, DEC);
   int compteur = 0;
-  while ((!Serial.findUntil(Rep, Error)) && (compteur < nbRep)) {
-    flushSim();
-    Serial.print(Commande);
-    Serial.println(1, DEC);
-    compteur++;
-    delay(50);
-  }
+  // while ((!Serial.findUntil(Rep, Error)) && (compteur < nbRep)) {
+  //   flushSim();
+  //   Serial.print(Commande);
+  //   Serial.println(1, DEC);
+  //   compteur++;
+  //   delay(50);
+  // }
   if (compteur < nbRep)
   {
     return true;
