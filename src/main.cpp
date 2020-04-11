@@ -103,7 +103,7 @@ int getCounter();
 int getValue(uint16_t position, uint8_t largeur);
 void incrementValue(uint16_t position, uint8_t largeur);
 bool sendAtFram(long timeout, uint16_t pos1, uint16_t pos2, char* Rep, char* Error, int nbRep);
-bool fireHttpAction(long timeout, char* Commande, char* Rep, char* Error, int nbRep);
+bool fireHttpAction(long timeout, char* Commande, char* Rep, char* Error);
 void getWriteFromFram(uint16_t p1, uint16_t p2);
 void trace(unsigned long unixTime, uint8_t type);
 void clearValue();
@@ -188,7 +188,7 @@ bool httpPostAll() {
   bool OkToSend = true;
   if (sendAtFram(3000, 31254, 13, "OK", "ERROR", 5)) { //"AT+HTTPINIT"
     if (sendAtFram(3000, 31267, 19, "OK", "ERROR", 5)) { //"AT+HTTPPARA=\"CID\",1"
-      if (sendAtFram(60000, 31609, 73, "OK", "ERROR", 5)) { //"AT+HTTPPARA=\"URL\",\"http://casa-interface.casabaia.ma/commandes.php\""
+      if (sendAtFram(25000, 31609, 73, "OK", "ERROR", 5)) { //"AT+HTTPPARA=\"URL\",\"http://casa-interface.casabaia.ma/commandes.php\""
         Serial.setTimeout(90000);
         flushSim();
         Serial.print("AT+HTTPDATA=");
@@ -227,7 +227,7 @@ bool httpPostAll() {
     } else OkToSend = false;
   } else OkToSend = false;
   if (OkToSend) {
-    if (fireHttpAction(60000, "AT+HTTPACTION=", ",200,", "ERROR", 1)) {
+    if (fireHttpAction(25000, "AT+HTTPACTION=", ",200,", "ERROR")) {
     httpPostFail = 0; 
     clearMemory(getCounter() * 66); 
     clearMemoryDebug(32003); 
@@ -242,7 +242,7 @@ bool httpPostLimited() {
   bool OkToSend = true;
   if (sendAtFram(3000, 31254, 13, "OK", "ERROR", 5)) { //"AT+HTTPINIT"
     if (sendAtFram(3000, 31267, 19, "OK", "ERROR", 5)) { //"AT+HTTPPARA=\"CID\",1"
-      if (sendAtFram(60000, 31609, 73, "OK", "ERROR", 5)) { //"AT+HTTPPARA=\"URL\",\"http://casa-interface.casabaia.ma/commandes.php\""
+      if (sendAtFram(20000, 31609, 73, "OK", "ERROR", 5)) { //"AT+HTTPPARA=\"URL\",\"http://casa-interface.casabaia.ma/commandes.php\""
         Serial.setTimeout(90000);
         flushSim();
         Serial.print("AT+HTTPDATA=");
@@ -280,7 +280,7 @@ bool httpPostLimited() {
     } else OkToSend = false;
   } else OkToSend = false;
   if (OkToSend) {
-    if (fireHttpAction(60000, "AT+HTTPACTION=", ",200,", "ERROR", 1)) {
+    if (fireHttpAction(20000, "AT+HTTPACTION=", ",200,", "ERROR")) {
     decrementCounter(limitToSend);
         getWriteFromFramFromZero(limitToSend * 66, getCounter() * 66);
     return true;
@@ -314,7 +314,7 @@ bool httpPostWakeUp() {
     } else OkToSend = false;
   } else OkToSend = false;
   if (OkToSend) {
-    if (fireHttpAction(60000, "AT+HTTPACTION=", ",200,", "ERROR", 1)) {
+    if (fireHttpAction(60000, "AT+HTTPACTION=", ",200,", "ERROR")) {
       return true;
     } else {
       return false;
@@ -346,7 +346,7 @@ bool httpPostSleeping() {
     } else OkToSend = false;
   } else OkToSend = false;
   if (OkToSend) {
-    if (fireHttpAction(60000, "AT+HTTPACTION=", ",200,", "ERROR", 1)) {
+    if (fireHttpAction(60000, "AT+HTTPACTION=", ",200,", "ERROR")) {
       return true;
     } else {
       return false;
@@ -397,7 +397,7 @@ void httpPost1P() {
           } else OkToSend = false;
         } else OkToSend = false;
       } else OkToSend = false;
-      if (OkToSend) {fireHttpAction(60000, "AT+HTTPACTION=", ",200,", "ERROR", 1);}
+      if (OkToSend) {fireHttpAction(60000, "AT+HTTPACTION=", ",200,", "ERROR");}
     }
   }
 }
@@ -897,26 +897,14 @@ bool sendAtFram(long timeout, uint16_t pos1, uint16_t pos2, char* Rep, char* Err
   }
   Serial.setTimeout(1000);
 }
-bool fireHttpAction(long timeout, char* Commande, char* Rep, char* Error, int nbRep) {
+bool fireHttpAction(long timeout, char* Commande, char* Rep, char* Error) {
   flushSim();
   Serial.setTimeout(timeout);
   Serial.print(Commande);
   Serial.println(1, DEC);
-  int compteur = 0;
-  // while ((!Serial.findUntil(Rep, Error)) && (compteur < nbRep)) {
-  //   flushSim();
-  //   Serial.print(Commande);
-  //   Serial.println(1, DEC);
-  //   compteur++;
-  //   delay(50);
-  // }
-  if (compteur < nbRep)
-  {
-    return true;
+  if (Serial.findUntil(Rep, Error)) {return true;
   } else
-  {
-    return false;
-  }
+  {return false;}
   Serial.setTimeout(1000);
 }
 void getWriteFromFram(uint16_t p1, uint16_t p2) {
