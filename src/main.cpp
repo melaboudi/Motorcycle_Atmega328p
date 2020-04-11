@@ -202,7 +202,7 @@ bool httpPostAll() {
         Serial.print("AT+HTTPDATA=");
         delay(100);
         uint16_t nb = getCounter();
-    uint16_t Size = (nb * (SizeRec + 1)) + (nb * 8) - 1 + 2;
+        uint16_t Size = (nb * (SizeRec + 1)) + (nb * 8) - 1 + 2;
         Serial.print(Size);
         Serial.print(",");
         uint32_t maxTime = 90000;
@@ -857,14 +857,11 @@ void resetSS() {
   // Serial.begin(4800);
   cfunReset();
   turnOnGns();
-  //imei = returnImei();
   while (getGsmStat() != 1) {
     delay(500);
   }
   gprsOn();
-  //started = false;
   restarted=true;
-  /* previousMillisGps = currentMillis; */
   gnsFailCounter = 0;
   gpsFailCounter = 0;
   httpActionFail = 0;
