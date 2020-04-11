@@ -442,7 +442,7 @@ uint8_t getGnsStat() {
 }
 void badCharChecker(String data){
       for (int i = 0; i < strlen(data.c_str()); i++){   
-          if(!isAlphaNumeric(data.c_str()[i])){badCharCounter++;}
+          if(!isAlphaNumeric(data.c_str()[i])&&(int(data.c_str()[i])!=45)&&(int(data.c_str()[i])!=46)){badCharCounter++;}
         }
     }
 // bool isAlphaNumerical(String toCheck){
@@ -470,7 +470,7 @@ bool getGpsData() {
     uint8_t ind2 = gpsdatastr.indexOf(',', ind1 + 1);
     fixStatus = gpsdatastr.substring(ind1 + 1, ind2);
     fixStatus = fixStatus.substring(0, 1);
-    badCharChecker(fixStatus);
+    
         
     uint8_t ind3 = gpsdatastr.indexOf(',', ind2 + 1);
     String utctime = gpsdatastr.substring(ind2 + 1, ind3);
@@ -560,6 +560,16 @@ bool getGpsData() {
     //  uint8_t ind20 = gpsdatastr.indexOf(',', ind19 + 1);
     ////  String VPA = gpsdatastr.substring(ind19);
     //////////////////////////////////////////////////////////////////
+    badCharChecker(imei);
+    badCharChecker(fixStatus);
+    badCharChecker(latitude);
+    badCharChecker(longitude);
+    badCharChecker(speed);
+    badCharChecker(used_satellites);
+    badCharChecker(course);
+    badCharChecker(batteryLevel());
+    badCharChecker(lastUnixTime);
+ 
     if (onOff) {
       trace(unixTimeInt, 1);
       onOff = false;
