@@ -40,7 +40,6 @@ uint16_t httpActionFail = 0;
 uint16_t FirstStartCounter = 0;
 uint16_t ReStartCounter=0;
 uint16_t httpPostFail = 0;
-uint16_t httpPostSuccess = 0;
 bool onOff = true;
 unsigned long t1 = 0; //le temps du dernier point inséré
 unsigned long t2 = 0; //le temps du dernier point capté
@@ -142,15 +141,8 @@ void loop() {
       if (getGpsData()) { gpsFailCounter = 0; 
         if ((t2 - t1) >= ti) {insertMem();t1 = t2;}
         if ((t1 - t3) >= te) {
-          if (getCounter() <= 10) {
-            if (!httpPostAll()) {httpPostFail++; trace(unixTimeInt, 3);
-              if (httpPostFail == 2) {resetSS();}
-            }else {httpPostFail=0;}
-          } else {
-            if (!httpPostLimited()) {httpPostFail++; trace(unixTimeInt, 3);
-              if (httpPostFail == 2) {resetSS();}
-            }else {httpPostFail=0;}
-          }
+          if (getCounter() <= 10) {if (!httpPostAll()) {resetSS(); trace(unixTimeInt, 3);}
+          } else {if (!httpPostLimited()) {resetSS(); trace(unixTimeInt, 3);}}
         }
       } else {
         if(restarted){if (ReStartCounter == 2) {resetSS();}else {delay(1000);ReStartCounter++;}
@@ -236,9 +228,8 @@ bool httpPostAll() {
   } else OkToSend = false;
   if (OkToSend) {
     if (fireHttpAction(60000, "AT+HTTPACTION=", ",200,", "ERROR", 1)) {
-      httpPostFail = 0; 
-    httpPostSuccess++;
-      clearMemory(getCounter() * 66); 
+    httpPostFail = 0; 
+    clearMemory(getCounter() * 66); 
     clearMemoryDebug(32003); 
     t3 = t1;
     return true;
