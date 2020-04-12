@@ -188,7 +188,7 @@ bool httpPostAll() {
   if (sendAtFram(3000, 31254, 13, "OK", "ERROR", 5)) { //"AT+HTTPINIT"
     if (sendAtFram(3000, 31267, 19, "OK", "ERROR", 5)) { //"AT+HTTPPARA=\"CID\",1"
       if (sendAtFram(15000, 31609, 73, "OK", "ERROR", 5)) { //"AT+HTTPPARA=\"URL\",\"http://casa-interface.casabaia.ma/commandes.php\""
-        Serial.setTimeout(90000);
+        Serial.setTimeout(10000);
         flushSim();
         Serial.print("AT+HTTPDATA=");
         delay(100);
@@ -196,7 +196,7 @@ bool httpPostAll() {
         uint16_t Size = (nb * (SizeRec + 1)) + (nb * 8) - 1 + 2;
         Serial.print(Size);
         Serial.print(",");
-        uint32_t maxTime = 90000;
+        uint32_t maxTime = 30000;
         Serial.println(maxTime);
         Serial.findUntil("DOWNLOAD", "ERROR");
         Serial.print("[");
@@ -226,7 +226,7 @@ bool httpPostAll() {
     } else OkToSend = false;
   } else OkToSend = false;
   if (OkToSend) {
-    if (fireHttpAction(15000, "AT+HTTPACTION=", ",200,", "ERROR")) { 
+    if (fireHttpAction(10000, "AT+HTTPACTION=", ",200,", "ERROR",2)) { 
     clearMemory(getCounter() * 66); 
     clearMemoryDebug(32003); 
     t3 = t1;
@@ -241,14 +241,14 @@ bool httpPostLimited() {
   if (sendAtFram(3000, 31254, 13, "OK", "ERROR", 5)) { //"AT+HTTPINIT"
     if (sendAtFram(3000, 31267, 19, "OK", "ERROR", 5)) { //"AT+HTTPPARA=\"CID\",1"
       if (sendAtFram(15000, 31609, 73, "OK", "ERROR", 5)) { //"AT+HTTPPARA=\"URL\",\"http://casa-interface.casabaia.ma/commandes.php\""
-        Serial.setTimeout(90000);
+        Serial.setTimeout(10000);
         flushSim();
         Serial.print("AT+HTTPDATA=");
         delay(100);
         uint16_t Size = (limitToSend * (SizeRec + 1)) + (limitToSend * 8) - 1 + 2;
         Serial.print(Size);
         Serial.print(",");
-        uint32_t maxTime = 90000;
+        uint32_t maxTime = 30000;
         Serial.println(maxTime);
         Serial.findUntil("DOWNLOAD", "ERROR");
         Serial.print("[");
@@ -278,7 +278,7 @@ bool httpPostLimited() {
     } else OkToSend = false;
   } else OkToSend = false;
   if (OkToSend) {
-    if (fireHttpAction(15000, "AT+HTTPACTION=", ",200,", "ERROR")) {
+    if (fireHttpAction(10000, "AT+HTTPACTION=", ",200,", "ERROR",2)) {
     decrementCounter(limitToSend);
         getWriteFromFramFromZero(limitToSend * 66, getCounter() * 66);
     return true;
@@ -292,14 +292,14 @@ bool httpPostWakeUp() {
   if (sendAtFram(3000, 31254, 13, "OK", "ERROR", 5)) { //"AT+HTTPINIT"
     if (sendAtFram(3000, 31267, 19, "OK", "ERROR", 5)) { //"AT+HTTPPARA=\"CID\",1"
       if (sendAtFram(15000, 31609, 73, "OK", "ERROR", 5)) { //"AT+HTTPPARA=\"URL\",\"http://casa-interface.casabaia.ma/commandes.php\""
-        Serial.setTimeout(90000);
+        Serial.setTimeout(10000);
         flushSim();
         Serial.print("AT+HTTPDATA=");
         delay(100);
         uint16_t Size = 26;
         Serial.print(Size);
         Serial.print(",");
-        uint32_t maxTime = 90000;
+        uint32_t maxTime = 30000;
         Serial.println(maxTime);
         Serial.findUntil("DOWNLOAD", "ERROR");
         //String dataToSend="";
@@ -312,7 +312,7 @@ bool httpPostWakeUp() {
     } else OkToSend = false;
   } else OkToSend = false;
   if (OkToSend) {
-    if (fireHttpAction(15000, "AT+HTTPACTION=", ",200,", "ERROR")) {
+    if (fireHttpAction(10000, "AT+HTTPACTION=", ",200,", "ERROR",2)) {
       return true;
     } else {
       return false;
@@ -324,14 +324,14 @@ bool httpPostSleeping() {
   if (sendAtFram(3000, 31254, 13, "OK", "ERROR", 5)) { //"AT+HTTPINIT"
     if (sendAtFram(3000, 31267, 19, "OK", "ERROR", 5)) { //"AT+HTTPPARA=\"CID\",1"
       if (sendAtFram(15000, 31609, 73, "OK", "ERROR", 5)) { //"AT+HTTPPARA=\"URL\",\"http://casa-interface.casabaia.ma/commandes.php\""
-        Serial.setTimeout(90000);
+        Serial.setTimeout(10000);
         flushSim();
         Serial.print("AT+HTTPDATA=");
         delay(100);
         uint16_t Size = 26;
         Serial.print(Size);
         Serial.print(",");
-        uint32_t maxTime = 90000;
+        uint32_t maxTime = 30000;
         Serial.println(maxTime);
         Serial.findUntil("DOWNLOAD", "ERROR");
         //String dataToSend="";
@@ -344,7 +344,7 @@ bool httpPostSleeping() {
     } else OkToSend = false;
   } else OkToSend = false;
   if (OkToSend) {
-    if (fireHttpAction(15000, "AT+HTTPACTION=", ",200,", "ERROR")) {
+    if (fireHttpAction(10000, "AT+HTTPACTION=", ",200,", "ERROR",2)) {
       return true;
     } else {
       return false;
@@ -360,14 +360,14 @@ void httpPost1P() {
     if (sendAtFram(3000, 31254, 13, "OK", "ERROR", 5)) { //"AT+HTTPINIT"
     if (sendAtFram(3000, 31267, 19, "OK", "ERROR", 5)) { //"AT+HTTPPARA=\"CID\",1"
       if (sendAtFram(15000, 31609, 73, "OK", "ERROR", 5)) { //"AT+HTTPPARA=\"URL\",\"http://casa-interface.casabaia.ma/commandes.php\""
-    Serial.setTimeout(90000);
+    Serial.setTimeout(10000);
     flushSim();
     Serial.print("AT+HTTPDATA=");
     delay(100);
     Size = 76;
     Serial.print(Size);
     Serial.print(",");
-    maxTime = 60000;
+    maxTime = 30000;
     Serial.println(maxTime);
     Serial.findUntil("DOWNLOAD", "ERROR");
         Serial.print("[{\"P\":\"");
@@ -395,7 +395,7 @@ void httpPost1P() {
           } else OkToSend = false;
         } else OkToSend = false;
       } else OkToSend = false;
-      if (OkToSend) {fireHttpAction(15000, "AT+HTTPACTION=", ",200,", "ERROR");}
+      if (OkToSend) {fireHttpAction(10000, "AT+HTTPACTION=", ",200,", "ERROR",2);}
     }
   }
 }
@@ -894,14 +894,26 @@ bool sendAtFram(long timeout, uint16_t pos1, uint16_t pos2, char* Rep, char* Err
   }
   Serial.setTimeout(1000);
 }
-bool fireHttpAction(long timeout, char* Commande, char* Rep, char* Error) {
+bool fireHttpAction(long timeout, char* Commande, char* Rep, char* Error, int nbRep) {
   flushSim();
   Serial.setTimeout(timeout);
   Serial.print(Commande);
   Serial.println(1, DEC);
-  if (Serial.findUntil(Rep, Error)) {return true;
+  int compteur = 0;
+  while ((!Serial.findUntil(Rep, Error)) && (compteur < nbRep)) {
+    flushSim();
+    Serial.print(Commande);
+    Serial.println(1, DEC);
+    compteur++;
+    delay(50);
+  }
+  if (compteur < nbRep)
+  {
+    return true;
   } else
-  {return false;}
+  {
+    return false;
+  }
   Serial.setTimeout(1000);
 }
 void getWriteFromFram(uint16_t p1, uint16_t p2) {
