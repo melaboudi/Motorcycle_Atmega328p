@@ -39,7 +39,6 @@ bool restarted = false;
 uint16_t httpActionFail = 0;
 uint16_t FirstStartCounter = 0;
 uint16_t ReStartCounter=0;
-uint16_t httpPostFail = 0;
 bool onOff = true;
 unsigned long t1 = 0; //le temps du dernier point inséré
 unsigned long t2 = 0; //le temps du dernier point capté
@@ -227,8 +226,7 @@ bool httpPostAll() {
     } else OkToSend = false;
   } else OkToSend = false;
   if (OkToSend) {
-    if (fireHttpAction(15000, "AT+HTTPACTION=", ",200,", "ERROR")) {
-    httpPostFail = 0; 
+    if (fireHttpAction(15000, "AT+HTTPACTION=", ",200,", "ERROR")) { 
     clearMemory(getCounter() * 66); 
     clearMemoryDebug(32003); 
     t3 = t1;
@@ -857,7 +855,6 @@ void resetSS() {
   gpsFailCounter = 0;
   httpActionFail = 0;
   FirstStartCounter = 0;
-  httpPostFail = 0;
   ReStartCounter=0;
 }
 void cfunReset(){
