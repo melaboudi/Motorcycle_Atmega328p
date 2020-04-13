@@ -102,7 +102,7 @@ int getCounter();
 int getValue(uint16_t position, uint8_t largeur);
 void incrementValue(uint16_t position, uint8_t largeur);
 bool sendAtFram(long timeout, uint16_t pos1, uint16_t pos2, char* Rep, char* Error, int nbRep);
-bool fireHttpAction(long timeout, char* Commande, char* Rep, char* Error);
+bool fireHttpAction(long timeout, char* Commande, char* Rep, char* Error, int nbRep);
 void getWriteFromFram(uint16_t p1, uint16_t p2);
 void trace(unsigned long unixTime, uint8_t type);
 void clearValue();
