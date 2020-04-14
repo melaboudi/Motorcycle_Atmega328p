@@ -65,7 +65,6 @@ char newC[3]={0};
 uint8_t limitToSend = 5;
 int badCharCounter=0;
 uint16_t httpTimeout=6000;
-uint8_t  httpRetries=2;
 void badCharChecker(String data);
 void IntRoutine(void);
 bool httpPostAll();
@@ -104,7 +103,7 @@ int getCounter();
 int getValue(uint16_t position, uint8_t largeur);
 void incrementValue(uint16_t position, uint8_t largeur);
 bool sendAtFram(long timeout, uint16_t pos1, uint16_t pos2, char* Rep, char* Error, int nbRep);
-bool fireHttpAction(long timeout, char* Commande, char* Rep, char* Error, int nbRep);
+bool fireHttpAction(long timeout, char* Commande, char* Rep, char* Error);
 void getWriteFromFram(uint16_t p1, uint16_t p2);
 void trace(unsigned long unixTime, uint8_t type);
 void clearValue();
@@ -229,7 +228,7 @@ bool httpPostAll() {
     } else OkToSend = false;
   } else OkToSend = false;
   if (OkToSend) {
-    if (fireHttpAction(httpTimeout, "AT+HTTPACTION=", ",200,", "ERROR",httpRetries)) { 
+    if (fireHttpAction(httpTimeout, "AT+HTTPACTION=", ",200,", "ERROR")) { 
     clearMemory(getCounter() * 66); 
     clearMemoryDebug(32003); 
     t3 = t1;
@@ -281,7 +280,7 @@ bool httpPostLimited() {
     } else OkToSend = false;
   } else OkToSend = false;
   if (OkToSend) {
-    if (fireHttpAction(httpTimeout, "AT+HTTPACTION=", ",200,", "ERROR",httpRetries)) {
+    if (fireHttpAction(httpTimeout, "AT+HTTPACTION=", ",200,", "ERROR")) {
     decrementCounter(limitToSend);
         getWriteFromFramFromZero(limitToSend * 66, getCounter() * 66);
     return true;
@@ -315,7 +314,7 @@ bool httpPostWakeUp() {
     } else OkToSend = false;
   } else OkToSend = false;
   if (OkToSend) {
-    if (fireHttpAction(httpTimeout, "AT+HTTPACTION=", ",200,", "ERROR",httpRetries)) {
+    if (fireHttpAction(httpTimeout, "AT+HTTPACTION=", ",200,", "ERROR")) {
       return true;
     } else {
       return false;
@@ -347,7 +346,7 @@ bool httpPostSleeping() {
     } else OkToSend = false;
   } else OkToSend = false;
   if (OkToSend) {
-    if (fireHttpAction(httpTimeout, "AT+HTTPACTION=", ",200,", "ERROR",httpRetries)) {
+    if (fireHttpAction(httpTimeout, "AT+HTTPACTION=", ",200,", "ERROR")) {
       return true;
     } else {
       return false;
@@ -398,7 +397,7 @@ void httpPost1P() {
           } else OkToSend = false;
         } else OkToSend = false;
       } else OkToSend = false;
-      if (OkToSend) {fireHttpAction(httpTimeout, "AT+HTTPACTION=", ",200,", "ERROR",httpRetries);}
+      if (OkToSend) {fireHttpAction(httpTimeout, "AT+HTTPACTION=", ",200,", "ERROR");}
     }
   }
 }
@@ -887,7 +886,7 @@ bool sendAtFram(long timeout, uint16_t pos1, uint16_t pos2, char* Rep, char* Err
   }
   Serial.setTimeout(1000);
 }
-bool fireHttpAction(long timeout, char* Commande, char* Rep, char* Error, int nbRep) {
+bool fireHttpAction(long timeout, char* Commande, char* Rep, char* Error) {
   flushSim();
   Serial.setTimeout(timeout);
   Serial.print(Commande);
