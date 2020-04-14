@@ -226,7 +226,7 @@ bool httpPostAll() {
     } else OkToSend = false;
   } else OkToSend = false;
   if (OkToSend) {
-    if (fireHttpAction(10000, "AT+HTTPACTION=", ",200,", "ERROR",1)) { 
+    if (fireHttpAction(8000, "AT+HTTPACTION=", ",200,", "ERROR",3)) { 
     clearMemory(getCounter() * 66); 
     clearMemoryDebug(32003); 
     t3 = t1;
@@ -278,7 +278,7 @@ bool httpPostLimited() {
     } else OkToSend = false;
   } else OkToSend = false;
   if (OkToSend) {
-    if (fireHttpAction(10000, "AT+HTTPACTION=", ",200,", "ERROR",1)) {
+    if (fireHttpAction(8000, "AT+HTTPACTION=", ",200,", "ERROR",3)) {
     decrementCounter(limitToSend);
         getWriteFromFramFromZero(limitToSend * 66, getCounter() * 66);
     return true;
@@ -312,7 +312,7 @@ bool httpPostWakeUp() {
     } else OkToSend = false;
   } else OkToSend = false;
   if (OkToSend) {
-    if (fireHttpAction(10000, "AT+HTTPACTION=", ",200,", "ERROR",1)) {
+    if (fireHttpAction(8000, "AT+HTTPACTION=", ",200,", "ERROR",3)) {
       return true;
     } else {
       return false;
@@ -344,7 +344,7 @@ bool httpPostSleeping() {
     } else OkToSend = false;
   } else OkToSend = false;
   if (OkToSend) {
-    if (fireHttpAction(10000, "AT+HTTPACTION=", ",200,", "ERROR",1)) {
+    if (fireHttpAction(8000, "AT+HTTPACTION=", ",200,", "ERROR",3)) {
       return true;
     } else {
       return false;
@@ -395,7 +395,7 @@ void httpPost1P() {
           } else OkToSend = false;
         } else OkToSend = false;
       } else OkToSend = false;
-      if (OkToSend) {fireHttpAction(10000, "AT+HTTPACTION=", ",200,", "ERROR",1);}
+      if (OkToSend) {fireHttpAction(8000, "AT+HTTPACTION=", ",200,", "ERROR",3);}
     }
   }
 }
