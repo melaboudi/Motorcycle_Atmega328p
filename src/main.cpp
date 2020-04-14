@@ -64,6 +64,8 @@ char newC[3]={0};
 //6  25----4Points 8secondsSend
 uint8_t limitToSend = 5;
 int badCharCounter=0;
+uint16_t httpTimeout=6000;
+uint8_t  httpRetries=2;
 void badCharChecker(String data);
 void IntRoutine(void);
 bool httpPostAll();
@@ -140,8 +142,9 @@ void loop() {
       if (getGpsData()) { gpsFailCounter = 0; 
         if ((t2 - t1) >= ti) {insertMem();t1 = t2;}
         if ((t1 - t3) >= te) {
-          if (getCounter() <= 10) {if (!httpPostAll()) {resetSS(); trace(unixTimeInt, 3);}
-          } else {if (!httpPostLimited()) {resetSS(); trace(unixTimeInt, 3);}}
+          if (getCounter() <= 10) {if (!httpPostAll()) {
+            if (getGpsData()) {insertMem();t1 = t2;}resetSS(); trace(unixTimeInt, 3);}
+          } else {if (!httpPostLimited()) {if (getGpsData()) {insertMem();t1 = t2;}resetSS(); trace(unixTimeInt, 3);}}
         }
       } else {
         if(restarted){if (ReStartCounter == 2) {resetSS();}else {delay(1000);ReStartCounter++;}
@@ -226,7 +229,7 @@ bool httpPostAll() {
     } else OkToSend = false;
   } else OkToSend = false;
   if (OkToSend) {
-    if (fireHttpAction(10000, "AT+HTTPACTION=", ",200,", "ERROR",1)) { 
+    if (fireHttpAction(httpTimeout, "AT+HTTPACTION=", ",200,", "ERROR",httpRetries)) { 
     clearMemory(getCounter() * 66); 
     clearMemoryDebug(32003); 
     t3 = t1;
@@ -278,7 +281,7 @@ bool httpPostLimited() {
     } else OkToSend = false;
   } else OkToSend = false;
   if (OkToSend) {
-    if (fireHttpAction(10000, "AT+HTTPACTION=", ",200,", "ERROR",1)) {
+    if (fireHttpAction(httpTimeout, "AT+HTTPACTION=", ",200,", "ERROR",httpRetries)) {
     decrementCounter(limitToSend);
         getWriteFromFramFromZero(limitToSend * 66, getCounter() * 66);
     return true;
@@ -312,7 +315,7 @@ bool httpPostWakeUp() {
     } else OkToSend = false;
   } else OkToSend = false;
   if (OkToSend) {
-    if (fireHttpAction(10000, "AT+HTTPACTION=", ",200,", "ERROR",1)) {
+    if (fireHttpAction(httpTimeout, "AT+HTTPACTION=", ",200,", "ERROR",httpRetries)) {
       return true;
     } else {
       return false;
@@ -344,7 +347,7 @@ bool httpPostSleeping() {
     } else OkToSend = false;
   } else OkToSend = false;
   if (OkToSend) {
-    if (fireHttpAction(10000, "AT+HTTPACTION=", ",200,", "ERROR",1)) {
+    if (fireHttpAction(httpTimeout, "AT+HTTPACTION=", ",200,", "ERROR",httpRetries)) {
       return true;
     } else {
       return false;
@@ -395,7 +398,7 @@ void httpPost1P() {
           } else OkToSend = false;
         } else OkToSend = false;
       } else OkToSend = false;
-      if (OkToSend) {fireHttpAction(10000, "AT+HTTPACTION=", ",200,", "ERROR",1);}
+      if (OkToSend) {fireHttpAction(httpTimeout, "AT+HTTPACTION=", ",200,", "ERROR",httpRetries);}
     }
   }
 }
@@ -433,17 +436,7 @@ void badCharChecker(String data){
       for (int i = 0; i < strlen(data.c_str()); i++){   
           if(!isAlphaNumeric(data.c_str()[i])&&(int(data.c_str()[i])!=45)&&(int(data.c_str()[i])!=46)){badCharCounter++;}
         }
-    }
-// bool isAlphaNumerical(String toCheck){
-//   int badCharCounter=0;
-//   for (uint16_t i = 0; i < sizeof(toCheck); i++)
-//   {   
-//     if ((!isAlphaNumeric(toCheck[i])&&(int(toCheck[i])!=43)&&(int(toCheck[i])!=44)&&(int(toCheck[i])!=45)&&(int(toCheck[i])!=46)&&(int(toCheck[i])!=58)&&(int(toCheck[i])!=10)&&(int(toCheck[i])!=13))) {
-//        badCharCounter++;
-//      }
-//   }
-//   if(badCharCounter>0){return false;}else{return true;}
-// }
+}
 bool getGpsData() {
   fixStatus = gpsTime = latitude = longitude = used_satellites = viewed_satellites = speed = " ";
   Serial.setTimeout(2000);
@@ -899,21 +892,7 @@ bool fireHttpAction(long timeout, char* Commande, char* Rep, char* Error, int nb
   Serial.setTimeout(timeout);
   Serial.print(Commande);
   Serial.println(1, DEC);
-  int compteur = 0;
-  while ((!Serial.findUntil(Rep, Error)) && (compteur < nbRep)) {
-    flushSim();
-    Serial.print(Commande);
-    Serial.println(1, DEC);
-    compteur++;
-    delay(50);
-  }
-  if (compteur < nbRep)
-  {
-    return true;
-  } else
-  {
-    return false;
-  }
+  if(Serial.findUntil(Rep, Error)){return true;} else{return false;}
   Serial.setTimeout(1000);
 }
 void getWriteFromFram(uint16_t p1, uint16_t p2) {
