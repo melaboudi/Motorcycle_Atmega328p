@@ -65,6 +65,7 @@ char newC[3]={0};
 uint8_t limitToSend = 5;
 int badCharCounter=0;
 uint16_t httpTimeout=6000;
+uint64_t lastSend =0;
 void badCharChecker(String data);
 void IntRoutine(void);
 bool httpPostAll();
@@ -104,13 +105,12 @@ int getValue(uint16_t position, uint8_t largeur);
 void incrementValue(uint16_t position, uint8_t largeur);
 bool sendAtFram(long timeout, uint16_t pos1, uint16_t pos2, char* Rep, char* Error, int nbRep);
 bool fireHttpAction(long timeout, char* Commande, char* Rep, char* Error);
-void getWriteFromFram(uint16_t p1, uint16_t p2);
 void trace(unsigned long unixTime, uint8_t type);
 void clearValue();
 bool insertGpsData();
 void resetSS();
 void cfunReset();
-
+void hardResetSS();
 
 void setup() {
   delay(100);
@@ -136,14 +136,19 @@ void setup() {
 void loop() {
   enablePinChangeInterrupt(digitalPinToPinChangeInterrupt(intPin));
   if(wakeUp){httpPostWakeUp();wakeUp=false;}
+  if ((millis()-lastSend)>180000){hardResetSS();}
   if (!digitalRead(8)) {
     if (getGnsStat() == 1) {gnsFailCounter = 0;
       if (getGpsData()) { gpsFailCounter = 0; 
         if ((t2 - t1) >= ti) {insertMem();t1 = t2;}
         if ((t1 - t3) >= te) {
-          if (getCounter() <= 10) {if (!httpPostAll()) {
-            if (getGpsData()) {insertMem();t1 = t2;}resetSS(); trace(unixTimeInt, 3);}
-          } else {if (!httpPostLimited()) {if (getGpsData()) {insertMem();t1 = t2;}resetSS(); trace(unixTimeInt, 3);}}
+          if (getCounter() <= 10) {
+            if (!httpPostAll()) {
+            if (getGpsData()) {insertMem();t1 = t2;}resetSS(); trace(unixTimeInt, 3);}else{lastSend=millis();}
+          } else {
+            if (!httpPostLimited()) {
+            if (getGpsData()) {insertMem();t1 = t2;}resetSS(); trace(unixTimeInt, 3);}else{lastSend=millis();}
+            }
         }
       } else {
         if(restarted){if (ReStartCounter == 2) {resetSS();}else {delay(1000);ReStartCounter++;}
@@ -416,7 +421,6 @@ void decrementCounter(uint16_t value) {
   countVal -= value;
   writeDataFramDebug(complete(String(countVal), 3).c_str(), 32000);
 }
-
 bool turnOnGns() {
   while (!getGnsStat()) {
     sendAtFram(3000, 31000, 12, "OK", "ERROR", 5); //"AT+CGNSPWR=1"
@@ -778,7 +782,7 @@ void insertMem() {
     writeDataFram(reception);
   }else writeDataFram("00"); */
   Wire.requestFrom(8, 4);
- byte lb1; byte hb1; byte lb2; byte hb2;
+  byte lb1; byte hb1; byte lb2; byte hb2;
  while (Wire.available()){lb1=Wire.read();hb1=Wire.read();lb2=Wire.read();hb2=Wire.read();received=true;}
   if(received){
     char str1[3];sprintf(str1, "%d", word(hb1,lb1));
@@ -829,13 +833,6 @@ void incrementValue(uint16_t position, uint8_t largeur) {
   writeDataFramDebug(complete(String(countVal), largeur).c_str(), position);
 }
 void resetSS() {
-  // pinMode(5, OUTPUT);//PWR KEY
-  // digitalWrite(5, LOW);
-  // delay(2000);
-  // pinMode(5, INPUT_PULLUP);
-  // delay(100);
-  // powerUp();
-  // Serial.begin(4800);
   cfunReset();
   turnOnGns();
   while (getGsmStat() != 1) {
@@ -848,6 +845,26 @@ void resetSS() {
   httpActionFail = 0;
   FirstStartCounter = 0;
   ReStartCounter=0;
+}
+void hardResetSS() {
+  // pinMode(5, OUTPUT);//PWR KEY
+  // digitalWrite(5, LOW);
+  // delay(2000);
+  // pinMode(5, INPUT_PULLUP);
+  // delay(100);
+  // powerUp();
+  // Serial.begin(4800);
+  sendAtFram(6000, 31730, 11, "OK", "ERROR", 1);  //CFUN=1,1
+  turnOnGns();
+  while (getGsmStat() != 1) {delay(500);}
+  gprsOn();
+  restarted=true;
+  gnsFailCounter = 0;
+  gpsFailCounter = 0;
+  httpActionFail = 0;
+  FirstStartCounter = 0;
+  ReStartCounter=0;
+  lastSend=millis();
 }
 void cfunReset(){
   sendAtFram(6000, 31730, 9, "OK", "ERROR", 1);  //CFUN=0
@@ -894,15 +911,7 @@ bool fireHttpAction(long timeout, char* Commande, char* Rep, char* Error) {
   if(Serial.findUntil(Rep, Error)){return true;} else{return false;}
   Serial.setTimeout(1000);
 }
-void getWriteFromFram(uint16_t p1, uint16_t p2) {
-  for (uint16_t a = p1; a < p1 + p2; a++)
-  {
-    uint8_t test = fram.read8(a);
-    char Buffer[2] = {0};
-    sprintf(Buffer, "%c", test);
-    writeDataFram(Buffer);
-  }
-}
+
 void trace(unsigned long unixTime, uint8_t type) {
   uint8_t jour = (int)(((unixTime / 86400) + 4) % 7) + 1; //1 dimanche
   uint16_t positionEcriture = 32000 + jour * 10;
