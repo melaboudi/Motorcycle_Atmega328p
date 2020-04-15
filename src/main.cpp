@@ -173,14 +173,17 @@ void loop() {
               clearMemoryDebug(32003);
               t3 = t1;
               lastSend=millis();
-            }         
+            } else {
+                  if (getGpsData()) {insertMem();t1 = t2;}
+                  resetSS(); trace(unixTimeInt, 3);
+            }       
           }
         }
     } else {
         if(restarted){if (ReStartCounter == 2) {resetSS();}else {delay(1000);ReStartCounter++;}
-            }else if (started){if (FirstStartCounter == 1) {resetSS();}else{delay(60000);FirstStartCounter++;}
-              }else if((!restarted)&&(!started)){if (gpsFailCounter == 2) {resetSS();}else {delay(1000);gpsFailCounter++;trace(unixTimeInt, 2);}  
-                }
+        }else if (started){if (FirstStartCounter == 1) {resetSS();}else{delay(60000);FirstStartCounter++;}
+        }else if((!restarted)&&(!started)){if (gpsFailCounter == 2) {resetSS();}else {delay(1000);gpsFailCounter++;trace(unixTimeInt, 2);}  
+        }
     }
   } else {if (gnsFailCounter == 2) {resetSS();} else {turnOnGns(); delay(1000);gnsFailCounter++;}}
   } else {
@@ -206,6 +209,7 @@ void loop() {
     powerUp();turnOnGns(); gprsOn(); 
     wakeUpCounter = 0;httpPostWakeUp();
     httpPost1P();
+    lastSend=millis();
     } 
   else {
     Wire.beginTransmission(8);
@@ -214,6 +218,7 @@ void loop() {
     powerUp();turnOnGns();gprsOn();
     wakeUpCounter = 0;httpPostWakeUp();
     httpPost1P();
+    lastSend=millis();
   }
   }
 }
