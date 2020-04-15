@@ -178,13 +178,20 @@ void loop() {
         }
     } else {
         if(restarted){if (ReStartCounter == 2) {resetSS();}else {delay(1000);ReStartCounter++;}
-          }else if (started){if (FirstStartCounter == 1) {resetSS();}else{delay(60000);FirstStartCounter++;}
-          }else if((!restarted)&&(!started)){if (gpsFailCounter == 2) {resetSS();}else {delay(1000);gpsFailCounter++;trace(unixTimeInt, 2);}  
-          }
+            }else if (started){if (FirstStartCounter == 1) {resetSS();}else{delay(60000);FirstStartCounter++;}
+              }else if((!restarted)&&(!started)){if (gpsFailCounter == 2) {resetSS();}else {delay(1000);gpsFailCounter++;trace(unixTimeInt, 2);}  
+                }
     }
   } else {if (gnsFailCounter == 2) {resetSS();} else {turnOnGns(); delay(1000);gnsFailCounter++;}}
   } else {
-      if(getCounter()==0){httpPost1P();}else {httpPostFromTo(0,getCounter());}
+      if(getCounter()==0){httpPost1P();}else {
+        if(httpPostFromTo(rep*limitToSend,getCounter())){
+          clearMemoryDiff(0,getCounter()*66); 
+          clearMemoryDebug(32003);
+          t3 = t1;
+          lastSend=millis();
+        }
+      }
     httpPostSleeping();powerDown(); 
     attachPinChangeInterrupt(digitalPinToPinChangeInterrupt(intPin), IntRoutine, RISING);
     Serial.flush();
