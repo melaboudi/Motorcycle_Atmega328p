@@ -174,23 +174,26 @@ void loop() {
               // if (httpPostFromTo(i*limitToSend,(i+1)*limitToSend)) {writeDataFramDebug(zero,(32080+i));}
             // }
           if(httpPostFromTo(i*6,(i+1)*6)){
-            httpPostCustom('8');
+             httpPostCustom('2');//delay(15000);
           }else {
-            ping = true;httpPostCustom('6');
+            ping = true;httpPostCustom('3');
           }
-          httpPostCustom('2');
-        }
-        httpPostCustom('3');
-        if(!ping){
           httpPostCustom('4');
+        }
+        httpPostCustom('5');
+        if(!ping){
+          httpPostCustom('6');
           getCount=getCounter();
-          if(httpPostFromTo(((reps)*6),getCount)){
-            clearMemoryDiff(0,getCount*66); 
-            clearMemoryDebug(32003);
-            getGpsData();
-            t3 = t2;
-          } else ping = true;
-          httpPostCustom('5');
+          if (reps*6!=getCount)
+          {          
+            if(httpPostFromTo(reps*6,getCount)){
+              clearMemoryDiff(0,getCount*66); 
+              clearMemoryDebug(32003);
+              getGpsData();
+              t3 = t2;
+              httpPostCustom('7');
+            } else {ping = true;  httpPostCustom('8');}
+          }
             //comments   
               /* bool finiShed=true;
                 for (uint8_t i = 0; i < reps; i++){if (getBatchCounter(i)==1){finiShed=false;}}
@@ -258,14 +261,15 @@ bool httpPostFromTo(uint16_t p1, uint16_t p2) {
         Serial.print("AT+HTTPDATA=");
         delay(100);
         //uint16_t p2 = getCounter();
-        uint16_t Size = (p2 * (SizeRec + 1)) + (p2 * 8) - 1 + 2;
+        // uint16_t Size = (p2 * (SizeRec + 1)) + (p2 * 8) - 1 + 2;
+        uint16_t Size = ((p2-p1) * (SizeRec + 1)) + ((p2-p1) * 8) - 1 + 2;
         Serial.print(Size);
         Serial.print(",");
         uint32_t maxTime = 30000;
         Serial.println(maxTime);
         Serial.findUntil("DOWNLOAD", "ERROR");
         Serial.print("[");
-        for (uint16_t i = p1/*0*/; i < p2 ; i++)
+        for (uint16_t i = p1; i < p2 ; i++)
         {
           for (uint16_t j = SizeRec * i; j < (SizeRec * (i + 1)) ; j++)
           {
