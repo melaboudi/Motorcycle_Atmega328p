@@ -67,7 +67,7 @@ int badCharCounter=0;
 uint16_t httpTimeout=10000;
 uint64_t lastSend =0;
 uint8_t sentLimited=0;
-uint8_t reps=0;
+uint16_t reps=0;
 char* one="1";
 char* zero="0";
 bool ping=false;
@@ -117,7 +117,7 @@ bool insertGpsData();
 void resetSS();
 void cfunReset();
 void hardResetSS();
-bool httpPostFromTo(uint8_t p1, uint8_t p2);
+bool httpPostFromTo(uint16_t p1, uint16_t p2);
 int getBatchCounter(uint16_t i);
 
 void setup() {
@@ -159,7 +159,7 @@ void loop() {
   if(ping){if (httpPostCustom('1')) {ping =false;}}
   if(!ping){
     if((t2 - t3) >= te){
-      uint8_t getCount=getCounter();
+      uint16_t getCount=getCounter();
       if ((getCount <= 5)) {
         if(httpPostFromTo(0,getCount)){
           clearMemoryDiff(0,getCount*66);
@@ -168,16 +168,17 @@ void loop() {
         }else ping =true;
       }else{
         reps=getCount/6;
-        for (uint8_t i = 0; i < reps; i++){
+        for (uint16_t i = 0; i < reps; i++){
           //comments
             //if(getBatchCounter(i)==1){
               // if (httpPostFromTo(i*limitToSend,(i+1)*limitToSend)) {writeDataFramDebug(zero,(32080+i));}
             // }
           if(httpPostFromTo(i*6,(i+1)*6)){
             httpPostCustom('8');
-          }else {ping = true;httpPostCustom('6');}
+          }else {
+            ping = true;httpPostCustom('6');
+          }
           httpPostCustom('2');
-          //getGpsData();
         }
         httpPostCustom('3');
         if(!ping){
@@ -246,9 +247,10 @@ void IntRoutine(void) {
   Serial.flush();
   detachPinChangeInterrupt(digitalPinToPinChangeInterrupt(intPin));
 }
-bool httpPostFromTo(uint8_t p1, uint8_t p2) {
+bool httpPostFromTo(uint16_t p1, uint16_t p2) {
   bool OkToSend = true;
-  if (sendAtFram(3000, 31254, 13, "OK", "ERROR", 5)) { //"AT+HTTPINIT"
+  //sendAtFram(5000, 31241, 11, "OK", "ERROR", 5);        //"AT+HTTPTERM"
+  if (sendAtFram(3000, 31254, 11, "OK", "ERROR", 5)) { //"AT+HTTPINIT"
     if (sendAtFram(3000, 31267, 19, "OK", "ERROR", 5)) { //"AT+HTTPPARA=\"CID\",1"
       if (sendAtFram(5000, 31609, 73, "OK", "ERROR", 5)) { //"AT+HTTPPARA=\"URL\",\"http://casa-interface.casabaia.ma/commandes.php\""
         Serial.setTimeout(10000);
@@ -271,7 +273,7 @@ bool httpPostFromTo(uint8_t p1, uint8_t p2) {
               Serial.print("{\"P\":\"");
               delay(1);
             }
-            uint8_t test = fram.read8(j);
+            uint16_t test = fram.read8(j);
             sprintf(Buffer, "%c", test);
             Serial.write(Buffer);
             delay(1);
@@ -290,12 +292,17 @@ bool httpPostFromTo(uint8_t p1, uint8_t p2) {
   } else OkToSend = false;
   if (OkToSend) {
     if (fireHttpAction(httpTimeout, "AT+HTTPACTION=", ",200,", "ERROR")) {
-      sendAtFram(5000, 31241, 13, "OK", "ERROR", 5); return true;} else {sendAtFram(5000, 31241, 13, "OK", "ERROR", 5);return false;}
-  }
+      sendAtFram(5000, 31241, 11, "OK", "ERROR", 5);
+      return true;
+    } else {
+      //sendAtFram(5000, 31241, 11, "OK", "ERROR", 5);
+      return false;
+    }
+  }else resetSS();
 }
 // bool httpPostAll() {
   //   bool OkToSend = true;
-  //   if (sendAtFram(3000, 31254, 13, "OK", "ERROR", 5)) { //"AT+HTTPINIT"
+  //   if (sendAtFram(3000, 31254, 11, "OK", "ERROR", 5)) { //"AT+HTTPINIT"
   //     if (sendAtFram(3000, 31267, 19, "OK", "ERROR", 5)) { //"AT+HTTPPARA=\"CID\",1"
   //       if (sendAtFram(15000, 31609, 73, "OK", "ERROR", 5)) { //"AT+HTTPPARA=\"URL\",\"http://casa-interface.casabaia.ma/commandes.php\""
   //         Serial.setTimeout(10000);
@@ -348,7 +355,7 @@ bool httpPostFromTo(uint8_t p1, uint8_t p2) {
   // }
 // bool httpPostLimited() {
   //   bool OkToSend = true;
-  //   if (sendAtFram(3000, 31254, 13, "OK", "ERROR", 5)) { //"AT+HTTPINIT"
+  //   if (sendAtFram(3000, 31254, 11, "OK", "ERROR", 5)) { //"AT+HTTPINIT"
   //     if (sendAtFram(3000, 31267, 19, "OK", "ERROR", 5)) { //"AT+HTTPPARA=\"CID\",1"
   //       if (sendAtFram(15000, 31609, 73, "OK", "ERROR", 5)) { //"AT+HTTPPARA=\"URL\",\"http://casa-interface.casabaia.ma/commandes.php\""
   //         Serial.setTimeout(10000);
@@ -399,7 +406,7 @@ bool httpPostFromTo(uint8_t p1, uint8_t p2) {
   // }
 bool httpPostWakeUp() {
   bool OkToSend = true;
-  if (sendAtFram(3000, 31254, 13, "OK", "ERROR", 5)) { //"AT+HTTPINIT"
+  if (sendAtFram(3000, 31254, 11, "OK", "ERROR", 5)) { //"AT+HTTPINIT"
     if (sendAtFram(3000, 31267, 19, "OK", "ERROR", 5)) { //"AT+HTTPPARA=\"CID\",1"
       if (sendAtFram(15000, 31609, 73, "OK", "ERROR", 5)) { //"AT+HTTPPARA=\"URL\",\"http://casa-interface.casabaia.ma/commandes.php\""
         Serial.setTimeout(10000);
@@ -432,7 +439,7 @@ bool httpPostWakeUp() {
 
 bool httpPostCustom(char custom) {
   bool OkToSend = true;
-  if (sendAtFram(3000, 31254, 13, "OK", "ERROR", 5)) { //"AT+HTTPINIT"
+  if (sendAtFram(3000, 31254, 11, "OK", "ERROR", 5)) { //"AT+HTTPINIT"
     if (sendAtFram(3000, 31267, 19, "OK", "ERROR", 5)) { //"AT+HTTPPARA=\"CID\",1"
       if (sendAtFram(15000, 31609, 73, "OK", "ERROR", 5)) { //"AT+HTTPPARA=\"URL\",\"http://casa-interface.casabaia.ma/commandes.php\""
         Serial.setTimeout(10000);
@@ -457,16 +464,16 @@ bool httpPostCustom(char custom) {
   } else OkToSend = false;
   if (OkToSend) {
     if (fireHttpAction(3000, "AT+HTTPACTION=", ",200,", "ERROR")) {
+      sendAtFram(5000, 31241, 11, "OK", "ERROR", 5);
       return true;
     } else {
       return false;
     }
-    sendAtFram(5000, 31241, 13, "OK", "ERROR", 5);
   }
 }
 bool httpPostSleeping() {
   bool OkToSend = true;
-  if (sendAtFram(3000, 31254, 13, "OK", "ERROR", 5)) { //"AT+HTTPINIT"
+  if (sendAtFram(3000, 31254, 11, "OK", "ERROR", 5)) { //"AT+HTTPINIT"
     if (sendAtFram(3000, 31267, 19, "OK", "ERROR", 5)) { //"AT+HTTPPARA=\"CID\",1"
       if (sendAtFram(15000, 31609, 73, "OK", "ERROR", 5)) { //"AT+HTTPPARA=\"URL\",\"http://casa-interface.casabaia.ma/commandes.php\""
         Serial.setTimeout(10000);
@@ -497,12 +504,12 @@ bool httpPostSleeping() {
   }
 }
 void httpPost1P() {
-  sendAtFram(3000, 31241, 13, "OK", "ERROR", 5);
+  sendAtFram(3000, 31241, 11, "OK", "ERROR", 5);
   batLev=batteryLevel();
     if (getGnsStat() == 1) {
     if (getGpsData()) {
     OkToSend = true;
-    if (sendAtFram(3000, 31254, 13, "OK", "ERROR", 5)) { //"AT+HTTPINIT"
+    if (sendAtFram(3000, 31254, 11, "OK", "ERROR", 5)) { //"AT+HTTPINIT"
     if (sendAtFram(3000, 31267, 19, "OK", "ERROR", 5)) { //"AT+HTTPPARA=\"CID\",1"
       if (sendAtFram(15000, 31609, 73, "OK", "ERROR", 5)) { //"AT+HTTPPARA=\"URL\",\"http://casa-interface.casabaia.ma/commandes.php\""
     Serial.setTimeout(10000);
