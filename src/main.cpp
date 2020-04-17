@@ -44,7 +44,7 @@ unsigned long t1 = 0; //le temps du dernier point inséré
 unsigned long t2 = 0; //le temps du dernier point capté
 uint16_t ti = 6; //le temps entre chaque insertion
 unsigned long t3 = 0; //le temps du dernier envoie
-unsigned long te = 45; //le temps entre les envoies
+unsigned long te = 23; //le temps entre les envoies
 unsigned long unixTimeInt = 0;
 uint16_t SizeRec = 66;
 bool wakeUp=true;
@@ -62,12 +62,16 @@ char newC[3]={0};
 //6  34----6points 8secondsSend
 //6  29----5points 8.5secondsSent
 //6  25----4Points 8secondsSend
-uint8_t limitToSend = 5;
+int limitToSend = 3;
 int badCharCounter=0;
-uint16_t httpTimeout=6000;
+uint16_t httpTimeout=10000;
 uint64_t lastSend =0;
 uint8_t sentLimited=0;
-uint8_t rep=0;
+uint8_t reps=0;
+char* one="1";
+char* zero="0";
+bool ping=false;
+bool httpPostCustom(char custom);
 void badCharChecker(String data);
 void IntRoutine(void);
 // bool httpPostAll();
@@ -114,6 +118,7 @@ void resetSS();
 void cfunReset();
 void hardResetSS();
 bool httpPostFromTo(uint8_t p1, uint8_t p2);
+int getBatchCounter(uint16_t i);
 
 void setup() {
   delay(100);
@@ -137,58 +142,72 @@ void setup() {
 }
 
 void loop() {
-  enablePinChangeInterrupt(digitalPinToPinChangeInterrupt(intPin));
-  if(wakeUp){httpPostWakeUp();wakeUp=false;}
-  if ((millis()-lastSend)>180000){hardResetSS();}
+  //enablePinChangeInterrupt(digitalPinToPinChangeInterrupt(intPin));
+  // if(wakeUp){httpPostWakeUp();wakeUp=false;}
+  // if ((millis()-lastSend)>180000){hardResetSS();}
   if (!digitalRead(8)) {
-    if (getGnsStat() == 1) {gnsFailCounter = 0;
-      if (getGpsData()) { gpsFailCounter = 0; 
-        if ((t2 - t1) >= ti) {insertMem();t1 = t2;}
-        if ((t1 - t3) >= te) {
-          if (getCounter() < 10) {
-            if (httpPostFromTo(0,getCounter())) {
-              clearMemoryDiff(0,getCounter()*66); 
-              clearMemoryDebug(32003);
-              t3 = t1;
-              lastSend=millis();
-              } else {if (getGpsData()) {insertMem();t1 = t2;}resetSS(); trace(unixTimeInt, 3);}
-          } else {
-            rep=getCounter()/limitToSend;
-            uint8_t repsDone[rep]={0};
-            for (uint8_t i = 0; i < rep; i++){
-              if (httpPostFromTo(i*limitToSend,(i+1)*limitToSend)) {
-              if (getGpsData()) {insertMem();t1 = t2;}
-              lastSend=millis();repsDone[i]=1;
-              } else {
-                  if (getGpsData()) {insertMem();t1 = t2;}
-                  resetSS(); trace(unixTimeInt, 3);
-              }  
-            }
-            for (uint8_t i = 0; i < rep; i++){
-              if (repsDone[i]==0)
-              {httpPostFromTo(i*limitToSend,(i+1)*limitToSend);lastSend=millis();}
-            }
-            if(httpPostFromTo(rep*limitToSend,getCounter())){
-              clearMemoryDiff(0,getCounter()*66); 
-              clearMemoryDebug(32003);
-              t3 = t1;
-              lastSend=millis();
-            } else {
-                  if (getGpsData()) {insertMem();t1 = t2;}
-                  resetSS(); trace(unixTimeInt, 3);
-            }       
-          }
+    //comments
+      if (!getGpsData()) {
+        if (!getGnsStat() == 1) {if (gnsFailCounter == 2) {resetSS();} else {turnOnGns(); 
+          delay(1000);gnsFailCounter++;}
         }
-    } else {
         if(restarted){if (ReStartCounter == 2) {resetSS();}else {delay(1000);ReStartCounter++;}
         }else if (started){if (FirstStartCounter == 1) {resetSS();}else{delay(60000);FirstStartCounter++;}
         }else if((!restarted)&&(!started)){if (gpsFailCounter == 2) {resetSS();}else {delay(1000);gpsFailCounter++;trace(unixTimeInt, 2);}  
         }
+      }
+  if(ping){if (httpPostCustom('1')) {ping =false;}}
+  if(!ping){
+    if((t2 - t3) >= te){
+      uint8_t getCount=getCounter();
+      if ((getCount <= 5)) {
+        if(httpPostFromTo(0,getCount)){
+          clearMemoryDiff(0,getCount*66);
+          clearMemoryDebug(32003);
+          t3 = t2;
+        }else ping =true;
+      }else{
+        reps=getCount/6;
+        for (uint8_t i = 0; i < reps; i++){
+          //comments
+            //if(getBatchCounter(i)==1){
+              // if (httpPostFromTo(i*limitToSend,(i+1)*limitToSend)) {writeDataFramDebug(zero,(32080+i));}
+            // }
+          if(httpPostFromTo(i*6,(i+1)*6)){
+            httpPostCustom('8');
+          }else {ping = true;httpPostCustom('6');}
+          httpPostCustom('2');
+          //getGpsData();
+        }
+        httpPostCustom('3');
+        if(!ping){
+          httpPostCustom('4');
+          getCount=getCounter();
+          if(httpPostFromTo(((reps)*6),getCount)){
+            clearMemoryDiff(0,getCount*66); 
+            clearMemoryDebug(32003);
+            getGpsData();
+            t3 = t2;
+          } else ping = true;
+          httpPostCustom('5');
+            //comments   
+              /* bool finiShed=true;
+                for (uint8_t i = 0; i < reps; i++){if (getBatchCounter(i)==1){finiShed=false;}}
+                if (finiShed==true){
+                  if(httpPostFromTo(reps*limitToSend,getCounter())){
+                    clearMemoryDiff(0,getCounter()*66); 
+                    clearMemoryDebug(32003);
+                  }
+                }
+                getGpsData();
+              }*/
+        }
+      }
     }
-  } else {if (gnsFailCounter == 2) {resetSS();} else {turnOnGns(); delay(1000);gnsFailCounter++;}}
-  } else {
+  }
+  } /*else {
       if(getCounter()==0){httpPost1P();}else {
-        if(httpPostFromTo(rep*limitToSend,getCounter())){
+        if(httpPostFromTo(reps*limitToSend,getCounter())){
           clearMemoryDiff(0,getCounter()*66); 
           clearMemoryDebug(32003);
           t3 = t1;
@@ -209,7 +228,7 @@ void loop() {
     powerUp();turnOnGns(); gprsOn(); 
     wakeUpCounter = 0;httpPostWakeUp();
     httpPost1P();
-    lastSend=millis();
+    //lastSend=millis();
     } 
   else {
     Wire.beginTransmission(8);
@@ -220,7 +239,7 @@ void loop() {
     httpPost1P();
     lastSend=millis();
   }
-  }
+  }*/
 }
 void IntRoutine(void) {
    wakeUpCounter = 4;
@@ -231,7 +250,7 @@ bool httpPostFromTo(uint8_t p1, uint8_t p2) {
   bool OkToSend = true;
   if (sendAtFram(3000, 31254, 13, "OK", "ERROR", 5)) { //"AT+HTTPINIT"
     if (sendAtFram(3000, 31267, 19, "OK", "ERROR", 5)) { //"AT+HTTPPARA=\"CID\",1"
-      if (sendAtFram(15000, 31609, 73, "OK", "ERROR", 5)) { //"AT+HTTPPARA=\"URL\",\"http://casa-interface.casabaia.ma/commandes.php\""
+      if (sendAtFram(5000, 31609, 73, "OK", "ERROR", 5)) { //"AT+HTTPPARA=\"URL\",\"http://casa-interface.casabaia.ma/commandes.php\""
         Serial.setTimeout(10000);
         flushSim();
         Serial.print("AT+HTTPDATA=");
@@ -270,7 +289,8 @@ bool httpPostFromTo(uint8_t p1, uint8_t p2) {
     } else OkToSend = false;
   } else OkToSend = false;
   if (OkToSend) {
-    if (fireHttpAction(httpTimeout, "AT+HTTPACTION=", ",200,", "ERROR")) { return true;} else {return false;}
+    if (fireHttpAction(httpTimeout, "AT+HTTPACTION=", ",200,", "ERROR")) {
+      sendAtFram(5000, 31241, 13, "OK", "ERROR", 5); return true;} else {sendAtFram(5000, 31241, 13, "OK", "ERROR", 5);return false;}
   }
 }
 // bool httpPostAll() {
@@ -402,11 +422,46 @@ bool httpPostWakeUp() {
     } else OkToSend = false;
   } else OkToSend = false;
   if (OkToSend) {
-    if (fireHttpAction(httpTimeout, "AT+HTTPACTION=", ",200,", "ERROR")) {
+    if (fireHttpAction(3000, "AT+HTTPACTION=", ",200,", "ERROR")) {
       return true;
     } else {
       return false;
     }
+  }
+}
+
+bool httpPostCustom(char custom) {
+  bool OkToSend = true;
+  if (sendAtFram(3000, 31254, 13, "OK", "ERROR", 5)) { //"AT+HTTPINIT"
+    if (sendAtFram(3000, 31267, 19, "OK", "ERROR", 5)) { //"AT+HTTPPARA=\"CID\",1"
+      if (sendAtFram(15000, 31609, 73, "OK", "ERROR", 5)) { //"AT+HTTPPARA=\"URL\",\"http://casa-interface.casabaia.ma/commandes.php\""
+        Serial.setTimeout(10000);
+        flushSim();
+        Serial.print("AT+HTTPDATA=");
+        delay(100);
+        uint16_t Size = 26;
+        Serial.print(Size);
+        Serial.print(",");
+        uint32_t maxTime = 30000;
+        Serial.println(maxTime);
+        Serial.findUntil("DOWNLOAD", "ERROR");
+        //String dataToSend="";
+    //sprintf(dataToSend.c_str(), "[{\"S\":\"%c1\"]}", imei.c_str());
+    Serial.print("[{\"S\":\"");
+    Serial.print(imei.c_str());
+    Serial.print(custom);
+    Serial.print("\"}]");
+        Serial.findUntil("OK", "OK");
+      } else OkToSend = false;
+    } else OkToSend = false;
+  } else OkToSend = false;
+  if (OkToSend) {
+    if (fireHttpAction(3000, "AT+HTTPACTION=", ",200,", "ERROR")) {
+      return true;
+    } else {
+      return false;
+    }
+    sendAtFram(5000, 31241, 13, "OK", "ERROR", 5);
   }
 }
 bool httpPostSleeping() {
@@ -643,7 +698,8 @@ bool getGpsData() {
     }
     if ((fixStatus.toInt() == 1) && (latitude.toInt() != 0) && (longitude.toInt() != 0)&&badCharCounter==0) {
       started = false;
-    restarted=false;
+      restarted=false;
+      insertMem();
       return true;
     } else {return false;badCharCounter=0;}  
 }
@@ -754,11 +810,11 @@ bool getGprsState() {//very slow!!
   } else return false;
 }
 void flushSim() {
-  uint16_t timeoutloop = 0;
-  while (timeoutloop++ < 40) {
+  uint16_t timeoutlp = 0;
+  while (timeoutlp++ < 40) {
     while (Serial.available()) {
       Serial.read();
-      timeoutloop = 0;  // If char was received reset the timer
+      timeoutlp = 0;  // If char was received reset the timer
     }
     delay(1);
   }
@@ -840,7 +896,8 @@ void clearMemoryDebug(unsigned long size) {
 void insertMem() {
   framWritePosition = getCounter() * SizeRec;
   //getWriteFromFram(31041,13); //"<Track Imei=\""
-  writeDataFram(imei.c_str());                    //15
+  char* ourImei=imei.c_str();
+  writeDataFram(ourImei);                    //15
   //getWriteFromFram(31054,26); //"\" Fc=\"WGS84\" FixPosition=\""
   writeDataFram(fixStatus.c_str());                 //1
   //getWriteFromFram(31080,7); //"\" Lat=\""
@@ -858,27 +915,29 @@ void insertMem() {
   //getWriteFromFram(31131,6); //"\" Dh=\""
   writeDataFram(lastUnixTime.c_str());                  //10
   //getWriteFromFram(31137,3); //"\"/>"
-  //writeDataFram("00");
+  writeDataFram("00");
   /* Wire.requestFrom(8, 2);
   char reception[3]={0};
   if(Wire.available()){
     Wire.readBytes(reception,2);
     writeDataFram(reception);
   }else writeDataFram("00"); */
-  Wire.requestFrom(8, 4);
-  byte lb1; byte hb1; byte lb2; byte hb2;
- while (Wire.available()){lb1=Wire.read();hb1=Wire.read();lb2=Wire.read();hb2=Wire.read();received=true;}
-  if(received){
-    char str1[3];sprintf(str1, "%d", word(hb1,lb1));
-    char str2[3];sprintf(str2, "%d", word(hb2,lb2));
-    writeDataFram(str1);
-    writeDataFram(str2);
-    received=false;
-  }else writeDataFram("00");
-  Wire.beginTransmission(8);
-  Wire.write('r');
-  Wire.endTransmission();
+  // // // // // // // // // //   Wire.requestFrom(8, 4);
+  // // // // // // // // // //   byte lb1; byte hb1; byte lb2; byte hb2;
+  // // // // // // // // // // while (Wire.available()){lb1=Wire.read();hb1=Wire.read();lb2=Wire.read();hb2=Wire.read();received=true;}
+  // // // // // // // // // //   if(received){
+  // // // // // // // // // //     char str1[3];sprintf(str1, "%d", word(hb1,lb1));
+  // // // // // // // // // //     char str2[3];sprintf(str2, "%d", word(hb2,lb2));
+  // // // // // // // // // //     writeDataFram(str1);
+  // // // // // // // // // //     writeDataFram(str2);
+  // // // // // // // // // //     received=false;
+  // // // // // // // // // //   }else {writeDataFram("00");}
+  // Wire.beginTransmission(8);
+  // Wire.write('r');
+  // Wire.endTransmission();
   incrementCounter();
+  // writeDataFramDebug(one,(32080+(getCounter()/limitToSend))-1);
+  // writeDataFramDebug("1",32080+(getCounter()/limitToSend));
 }
 void incrementCounter() {
   int countVal = getCounter();
@@ -899,6 +958,14 @@ int getCounter() {
     sprintf(Buffer, "%c", test);
     retour += Buffer;
   }
+  return retour.toInt();
+}
+int getBatchCounter(uint16_t j) {
+  String retour = " ";
+  char Buffer[5] = {0};
+  uint8_t test = fram.read8(32080+j);
+  sprintf(Buffer, "%c", test);
+  retour = Buffer;
   return retour.toInt();
 }
 int getValue(uint16_t position, uint8_t largeur) {
@@ -939,6 +1006,7 @@ void hardResetSS() {
   // powerUp();
   // Serial.begin(4800);
   sendAtFram(6000, 31730, 11, "OK", "ERROR", 1);  //CFUN=1,1
+  Serial.begin(4800);
   turnOnGns();
   while (getGsmStat() != 1) {delay(500);}
   gprsOn();
@@ -951,7 +1019,7 @@ void hardResetSS() {
   lastSend=millis();
 }
 void cfunReset(){
-  sendAtFram(6000, 31730, 9, "OK", "ERROR", 1);  //CFUN=0
+  sendAtFram(6000, 31741, 9, "OK", "ERROR", 1);  //CFUN=0
   sendAtFram(6000, 31140, 9, "OK", "ERROR", 1);  //CFUN=1
 }
 bool sendAtFram(long timeout, uint16_t pos1, uint16_t pos2, char* Rep, char* Error, int nbRep) {
