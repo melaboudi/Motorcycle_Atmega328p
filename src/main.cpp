@@ -169,15 +169,16 @@ void loop() {
         reps=getCount/limitToSend;
         for (uint16_t i = 0; i < reps; i++){
           //comments
-            //if(getBatchCounter(i)==1){
-              // if (httpPostFromTo(i*limitToSend,(i+1)*limitToSend)) {writeDataFramDebug(zero,(32080+i));}
-            // }
-          if(httpPostFromTo(i*limitToSend,(i+1)*limitToSend)){
-          }else {ping = true;}
+            if(getBatchCounter(i)==1){
+              if(httpPostFromTo(i*limitToSend,(i+1)*limitToSend)){writeDataFramDebug("0",(32080+i));
+              }else {ping = true;}
+            }
           getGpsData();
           if(i==(reps-1)){getCount=getCounter();reps=getCount/limitToSend;}
         }
-        if(!ping){
+        bool finiShed=true;
+        for (uint8_t i = 0; i < reps; i++){if (getBatchCounter(i)==1){finiShed=false;}}
+        if((!ping)&&finiShed){
           getCount=getCounter();
           if (reps*limitToSend!=getCount)
           {          
@@ -188,18 +189,8 @@ void loop() {
               t3 = t2;
               httpPostCustom('7');
             } else {ping = true;  httpPostCustom('8');}
+            getGpsData();
           }
-            //comments   
-              /* bool finiShed=true;
-                for (uint8_t i = 0; i < reps; i++){if (getBatchCounter(i)==1){finiShed=false;}}
-                if (finiShed==true){
-                  if(httpPostFromTo(reps*limitToSend,getCounter())){
-                    clearMemoryDiff(0,getCounter()*66); 
-                    clearMemoryDebug(32003);
-                  }
-                }
-                getGpsData();
-              }*/
         }
       }
     }
@@ -462,7 +453,7 @@ bool httpPostCustom(char custom) {
     } else OkToSend = false;
   } else OkToSend = false;
   if (OkToSend) {
-    if (fireHttpAction(3000, "AT+HTTPACTION=", ",200,", "ERROR")) {
+    if (fireHttpAction(2000, "AT+HTTPACTION=", ",200,", "ERROR")) {
       // sendAtFram(5000, 31241, 11, "OK", "ERROR", 5);
       return true;
     } else {
@@ -943,7 +934,7 @@ void insertMem() {
   // Wire.endTransmission();
   incrementCounter();
   // writeDataFramDebug(one,(32080+(getCounter()/limitToSend))-1);
-  // writeDataFramDebug("1",32080+(getCounter()/limitToSend));
+  if((getCounter()/limitToSend)>=1){writeDataFramDebug("1",(32080+(getCounter()/limitToSend)));}
 }
 void incrementCounter() {
   int countVal = getCounter();
