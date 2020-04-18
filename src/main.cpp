@@ -119,6 +119,7 @@ void cfunReset();
 void hardResetSS();
 bool httpPostFromTo(uint16_t p1, uint16_t p2);
 int getBatchCounter(uint16_t i);
+void httpPostMaster();
 int limitToSend =6;
 unsigned long te = 25; //le temps entre les envoies
 void setup() {
@@ -143,7 +144,7 @@ void setup() {
 }
 
 void loop() {
-  //enablePinChangeInterrupt(digitalPinToPinChangeInterrupt(intPin));
+  enablePinChangeInterrupt(digitalPinToPinChangeInterrupt(intPin));
   // if(wakeUp){httpPostWakeUp();wakeUp=false;}
   // if ((millis()-lastSend)>180000){hardResetSS();}
   if (!digitalRead(8)) {
@@ -158,7 +159,41 @@ void loop() {
   if(ping){if (httpPostCustom('1')) {ping =false;}}
   if(!ping){
     if((t2 - t3) >= te){
-      uint16_t getCount=getCounter();
+      httpPostMaster();
+    }
+  }
+  }else {
+    if(getCounter()==0){httpPost1P();}else {httpPostMaster();}
+    httpPostCustom('0');powerDown(); 
+    attachPinChangeInterrupt(digitalPinToPinChangeInterrupt(intPin), IntRoutine, RISING);
+    Serial.flush();
+
+    while (wakeUpCounter < 3) {
+    Wire.beginTransmission(8);
+    Wire.write('f');
+    Wire.endTransmission();
+      LowPower.idle(SLEEP_8S, ADC_OFF, TIMER2_OFF, TIMER1_OFF, TIMER0_OFF, SPI_OFF, USART0_ON, TWI_OFF);
+      wakeUpCounter++;
+    }
+    if (wakeUpCounter != 5) {
+    powerUp();turnOnGns(); gprsOn(); 
+    wakeUpCounter = 0;httpPostCustom('1');
+    httpPost1P();
+    //lastSend=millis();
+    } 
+  else {
+    Wire.beginTransmission(8);
+    Wire.write('n');
+    Wire.endTransmission();
+    powerUp();turnOnGns();gprsOn();
+    wakeUpCounter = 0;httpPostCustom('1');
+    httpPost1P();
+    lastSend=millis();
+  }
+  }
+}
+void httpPostMaster(){
+  uint16_t getCount=getCounter();
       if ((getCount <= limitToSend)) {
         if(httpPostFromTo(0,getCount)){
           clearMemoryDiff(0,getCount*66);
@@ -193,43 +228,6 @@ void loop() {
           }
         }
       }
-    }
-  }
-  } /*else {
-      if(getCounter()==0){httpPost1P();}else {
-        if(httpPostFromTo(reps*limitToSend,getCounter())){
-          clearMemoryDiff(0,getCounter()*66); 
-          clearMemoryDebug(32003);
-          t3 = t1;
-          lastSend=millis();
-        }
-      }
-    httpPostSleeping();powerDown(); 
-    attachPinChangeInterrupt(digitalPinToPinChangeInterrupt(intPin), IntRoutine, RISING);
-    Serial.flush();
-    while (wakeUpCounter < 3) {
-    Wire.beginTransmission(8);
-    Wire.write('f');
-    Wire.endTransmission();
-      LowPower.idle(SLEEP_8S, ADC_OFF, TIMER2_OFF, TIMER1_OFF, TIMER0_OFF, SPI_OFF, USART0_ON, TWI_OFF);
-      wakeUpCounter++;
-    }
-    if (wakeUpCounter != 5) {
-    powerUp();turnOnGns(); gprsOn(); 
-    wakeUpCounter = 0;httpPostWakeUp();
-    httpPost1P();
-    //lastSend=millis();
-    } 
-  else {
-    Wire.beginTransmission(8);
-    Wire.write('n');
-    Wire.endTransmission();
-    powerUp();turnOnGns();gprsOn();
-    wakeUpCounter = 0;httpPostWakeUp();
-    httpPost1P();
-    lastSend=millis();
-  }
-  }*/
 }
 void IntRoutine(void) {
    wakeUpCounter = 4;
