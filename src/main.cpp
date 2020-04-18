@@ -44,7 +44,7 @@ unsigned long t1 = 0; //le temps du dernier point inséré
 unsigned long t2 = 0; //le temps du dernier point capté
 uint16_t ti = 6; //le temps entre chaque insertion
 unsigned long t3 = 0; //le temps du dernier envoie
-unsigned long te = 23; //le temps entre les envoies
+// unsigned long te = 20; //le temps entre les envoies
 unsigned long unixTimeInt = 0;
 uint16_t SizeRec = 66;
 bool wakeUp=true;
@@ -62,9 +62,9 @@ char newC[3]={0};
 //6  34----6points 8secondsSend
 //6  29----5points 8.5secondsSent
 //6  25----4Points 8secondsSend
-int limitToSend = 3;
+
 int badCharCounter=0;
-uint16_t httpTimeout=10000;
+uint16_t httpTimeout=8000;
 uint64_t lastSend =0;
 uint8_t sentLimited=0;
 uint16_t reps=0;
@@ -119,7 +119,8 @@ void cfunReset();
 void hardResetSS();
 bool httpPostFromTo(uint16_t p1, uint16_t p2);
 int getBatchCounter(uint16_t i);
-
+int limitToSend =6;
+unsigned long te = 25; //le temps entre les envoies
 void setup() {
   delay(100);
   fram.begin();
@@ -146,47 +147,41 @@ void loop() {
   // if(wakeUp){httpPostWakeUp();wakeUp=false;}
   // if ((millis()-lastSend)>180000){hardResetSS();}
   if (!digitalRead(8)) {
-    //comments
       if (!getGpsData()) {
         if (!getGnsStat() == 1) {if (gnsFailCounter == 2) {resetSS();} else {turnOnGns(); 
           delay(1000);gnsFailCounter++;}
         }
-        if(restarted){if (ReStartCounter == 2) {resetSS();}else {delay(1000);ReStartCounter++;}
-        }else if (started){if (FirstStartCounter == 1) {resetSS();}else{delay(60000);FirstStartCounter++;}
-        }else if((!restarted)&&(!started)){if (gpsFailCounter == 2) {resetSS();}else {delay(1000);gpsFailCounter++;trace(unixTimeInt, 2);}  
-        }
+          if(restarted){if (ReStartCounter == 2) {resetSS();}else {delay(1000);ReStartCounter++;}
+          }else if (started){if (FirstStartCounter == 1) {resetSS();}else{delay(60000);FirstStartCounter++;}
+          }else if((!restarted)&&(!started)){if (gpsFailCounter == 2) {resetSS();}else {delay(1000);gpsFailCounter++;trace(unixTimeInt, 2);}}
       }
   if(ping){if (httpPostCustom('1')) {ping =false;}}
   if(!ping){
     if((t2 - t3) >= te){
       uint16_t getCount=getCounter();
-      if ((getCount <= 5)) {
+      if ((getCount <= limitToSend)) {
         if(httpPostFromTo(0,getCount)){
           clearMemoryDiff(0,getCount*66);
           clearMemoryDebug(32003);
           t3 = t2;
         }else ping =true;
       }else{
-        reps=getCount/6;
+        reps=getCount/limitToSend;
         for (uint16_t i = 0; i < reps; i++){
           //comments
             //if(getBatchCounter(i)==1){
               // if (httpPostFromTo(i*limitToSend,(i+1)*limitToSend)) {writeDataFramDebug(zero,(32080+i));}
             // }
-          if(httpPostFromTo(i*6,(i+1)*6)){
-             httpPostCustom('2');//delay(15000);
-          }else {
-            ping = true;httpPostCustom('3');
-          }
-          httpPostCustom('4');
+          if(httpPostFromTo(i*limitToSend,(i+1)*limitToSend)){
+          }else {ping = true;}
+          getGpsData();
+          if(i==(reps-1)){getCount=getCounter();reps=getCount/limitToSend;}
         }
-        httpPostCustom('5');
         if(!ping){
-          httpPostCustom('6');
           getCount=getCounter();
-          if (reps*6!=getCount)
+          if (reps*limitToSend!=getCount)
           {          
-            if(httpPostFromTo(reps*6,getCount)){
+            if(httpPostFromTo(reps*limitToSend,getCount)){
               clearMemoryDiff(0,getCount*66); 
               clearMemoryDebug(32003);
               getGpsData();
@@ -296,13 +291,13 @@ bool httpPostFromTo(uint16_t p1, uint16_t p2) {
   } else OkToSend = false;
   if (OkToSend) {
     if (fireHttpAction(httpTimeout, "AT+HTTPACTION=", ",200,", "ERROR")) {
-      sendAtFram(5000, 31241, 11, "OK", "ERROR", 5);
+      // sendAtFram(5000, 31241, 11, "OK", "ERROR", 5);
       return true;
     } else {
       //sendAtFram(5000, 31241, 11, "OK", "ERROR", 5);
       return false;
     }
-  }else resetSS();
+  }
 }
 // bool httpPostAll() {
   //   bool OkToSend = true;
@@ -468,7 +463,7 @@ bool httpPostCustom(char custom) {
   } else OkToSend = false;
   if (OkToSend) {
     if (fireHttpAction(3000, "AT+HTTPACTION=", ",200,", "ERROR")) {
-      sendAtFram(5000, 31241, 11, "OK", "ERROR", 5);
+      // sendAtFram(5000, 31241, 11, "OK", "ERROR", 5);
       return true;
     } else {
       return false;
