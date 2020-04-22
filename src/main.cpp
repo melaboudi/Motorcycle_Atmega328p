@@ -1,4 +1,4 @@
-//init
+//inits
   #include "arduino.h"
   #include "LowPower.h"
 
@@ -67,12 +67,12 @@
   //6  25----4Points 8secondsSend
 
   int badCharCounter=0;
-  uint16_t httpTimeout=7000;
+  uint16_t httpTimeout=8000;
   uint64_t lastSend =0;
   uint16_t reps=0;
   char* one="1";
   char* zero="0";
-  bool ping=false;
+  bool ping=true;
   bool httpPostCustom(char custom);
   void badCharChecker(String data);
   void IntRoutine(void);
@@ -123,8 +123,9 @@
   bool httpPostFromTo(uint16_t p1, uint16_t p2);
   int getBatchCounter(uint16_t i);
   void httpPostMaster();
-  int limitToSend =6;
-  unsigned long te = 25; //le temps entre les envoies
+  bool gps();
+  int limitToSend =7;
+  unsigned long te = 24; //le temps entre les envoies
   void setup() {
   delay(100);
   fram.begin();
@@ -150,26 +151,15 @@ void loop() {
   if(getCounter()>380){clearMemory(31999);clearMemoryDebug(32003);}
   enablePinChangeInterrupt(digitalPinToPinChangeInterrupt(intPin));
   if (!digitalRead(8)) {
-    while(ping||((millis()-startPinging)<pingingInterval)){
-      {
-        if (!getGpsData()) {
-          if (!getGnsStat()) {if (gnsFailCounter == 2) {resetSS();} else {turnOnGns();delay(1000);gnsFailCounter++;}}
-            if(restarted){if (ReStartCounter == 10) {resetSS();}else {delay(2000);ReStartCounter++;}
-            }else if (started){if (FirstStartCounter == 1) {resetSS();}else{delay(60000);FirstStartCounter++;}
-            }else if((!restarted)&&(!started)){httpPostCustom('9');if (gpsFailCounter == 10) {resetSS();}else {delay(1000);gpsFailCounter++;}
-            }
-          }
-        httpPing();
-      }
-    }
-    if (!getGpsData()) {
-      if (!getGnsStat()) {if (gnsFailCounter == 2) {resetSS();} else {turnOnGns();delay(1000);gnsFailCounter++;}}
-        if(restarted){if (ReStartCounter == 10) {resetSS();}else {delay(2000);ReStartCounter++;}
-        }else if (started){if (FirstStartCounter == 1) {resetSS();}else{delay(60000);FirstStartCounter++;}
-        }else if((!restarted)&&(!started)){httpPostCustom('9');if (gpsFailCounter == 10) {resetSS();}else {delay(1000);gpsFailCounter++;}
-        }
+    if(ping){
+      httpPing();
+      gps();
     }else{
-      if((t2 - t3) >= te){httpPostMaster();}
+      if (gps()) {
+        if((t2 - t3) >= (te-3)){
+          if (!ping){httpPostMaster();}
+        }
+      }
     }
   }else {//if(digitalRead(8))
     if(getCounter()==0){httpPost1P();}else {httpPostMaster();}
@@ -195,6 +185,7 @@ void loop() {
       wakeUpCounter = 0;httpPostCustom('1');
       httpPost1P();
     }
+
   }
 }
 void httpPostMaster(){
@@ -211,6 +202,7 @@ void httpPostMaster(){
         if(httpPostFromTo((i-1)*limitToSend,(i)*limitToSend)){writeDataFramDebug("0",(32080+i));
         }
       }
+      getGpsData();
     }
     bool finiShed=true;
     for (uint8_t i = 1; i <= (getCounter()/limitToSend); i++){if (getBatchCounter(i)==1){finiShed=false;}}
@@ -220,15 +212,29 @@ void httpPostMaster(){
           if(httpPostFromTo(reps*limitToSend,getCounter())){
             clearMemoryDiff(0,getCounter()*66); 
             clearMemoryDebug(32003);getGpsData();
-            t3 = t2;httpPostCustom('7');
+            t3 = t2;//httpPostCustom('7');
           } else {getGpsData();httpPostCustom('8');}
       }else{
         clearMemoryDiff(0,getCounter()*66); 
         clearMemoryDebug(32003);getGpsData();
-        t3 = t2;httpPostCustom('7');
+        t3 = t2;//httpPostCustom('7');
       }
     }
   }
+}
+bool gps(){
+  if (!getGpsData()) {
+      if (!getGnsStat()) {if (gnsFailCounter == 2) {resetSS();} else {turnOnGns();delay(1000);gnsFailCounter++;}}
+        if(restarted){if (ReStartCounter == 10) {resetSS();}else {delay(2000);ReStartCounter++;}
+        }else if (started){if (FirstStartCounter == 1) {resetSS();}else{delay(60000);FirstStartCounter++;}
+        }else if((!restarted)&&(!started)){httpPostCustom('9');if (gpsFailCounter == 10) {resetSS();}else {delay(1000);gpsFailCounter++;}
+        }
+        return false;
+    }else
+    {
+      return true;
+    }
+    
 }
 bool httpPostFromTo(uint16_t p1, uint16_t p2) {
   if(!ping){
@@ -285,7 +291,6 @@ bool httpPostFromTo(uint16_t p1, uint16_t p2) {
   }else{return false;}
   
 }
-
 void httpPing() {
   bool OkToSend = true;
   if (sendAtFram(3000, 31254, 11, "OK", "ERROR", 5)) { //"AT+HTTPINIT"
@@ -309,7 +314,7 @@ void httpPing() {
     } else OkToSend = false;
   } else OkToSend = false;
   if (OkToSend) {
-    if (fireHttpAction(1500, "AT+HTTPACTION=", ",200,", "ERROR")) {
+    if (fireHttpAction(3000, "AT+HTTPACTION=", ",200,", "ERROR")) {
       ping=false;
     }
   }
@@ -342,7 +347,6 @@ bool httpPostWakeUp() {
     if (fireHttpAction(3000, "AT+HTTPACTION=", ",200,", "ERROR")) {return true;} else {return false;}
   }else{return false;}
 }
-
 bool httpPostCustom(char custom) {
   if(!ping){
     bool OkToSend = true;
@@ -931,7 +935,7 @@ void hardResetSS() {
   httpActionFail = 0;
   FirstStartCounter = 0;
   ReStartCounter=0;
-  }
+}
 void cfunReset(){
   sendAtFram(6000, 31741, 9, "OK", "ERROR", 1);  //CFUN=0
   sendAtFram(6000, 31140, 9, "OK", "ERROR", 1);  //CFUN=1
@@ -974,10 +978,16 @@ bool fireHttpAction(long timeout, char* Commande, char* Rep, char* Error) {
   Serial.setTimeout(timeout);
   Serial.print(Commande);
   Serial.println(1, DEC);
-  if(Serial.findUntil(Rep, Error)){return true;} else{ping = true;startPinging=millis();return false;}
+  if(Serial.findUntil(Rep, Error)){
+    // sendAtFram(2000, 31241, 11, "OK", "ERROR", 5);
+    return true;
+  } else{
+    ping = true;startPinging=millis();
+    // sendAtFram(2000, 31241, 11, "OK", "ERROR", 5);
+    return false;
+    }
   Serial.setTimeout(1000);
 }
-
 void trace(unsigned long unixTime, uint8_t type) {
   uint8_t jour = (int)(((unixTime / 86400) + 4) % 7) + 1; //1 dimanche
   uint16_t positionEcriture = 32000 + jour * 10;
