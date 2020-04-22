@@ -157,6 +157,8 @@ void loop() {
     }else{
       if (gps()) {
         if((t2 - t3) >= (te-3)){
+          httpPing();
+          gps();
           if (!ping){httpPostMaster();}
         }
       }
