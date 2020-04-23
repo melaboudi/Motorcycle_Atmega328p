@@ -45,7 +45,7 @@
   unsigned long t2 = 0; //le temps du dernier point capté
   uint16_t ti = 6; //le temps entre chaque insertion
   unsigned long t3 = 0; //le temps du dernier envoie
-  // unsigned long te = 20; //le temps entre les envoies
+  unsigned long te = 20; //le temps entre les envoies
   unsigned long unixTimeInt = 0;
   uint16_t SizeRec = 66;
   bool wakeUp=true;
@@ -73,7 +73,7 @@
   char* one="1";
   char* zero="0";
   bool ping=true;
-  bool httpPostCustom(char custom);
+  // bool httpPostCustom(char custom);
   void badCharChecker(String data);
   void IntRoutine(void);
   // bool httpPostAll();
@@ -125,7 +125,6 @@
   void httpPostMaster();
   bool gps();
   int limitToSend =7;
-  unsigned long te = 24; //le temps entre les envoies
   void setup() {
   delay(100);
   fram.begin();
@@ -148,24 +147,20 @@
   }
 
 void loop() {
-  if(getCounter()>380){clearMemory(31999);clearMemoryDebug(32003);}
-  enablePinChangeInterrupt(digitalPinToPinChangeInterrupt(intPin));
+  gps();
+    if(getCounter()>380){clearMemory(31999);clearMemoryDebug(32003);}
+    enablePinChangeInterrupt(digitalPinToPinChangeInterrupt(intPin));
+
   if (!digitalRead(8)) {
-    if(ping){
       httpPing();
       gps();
-    }else{
-      if (gps()) {
-        if((t2 - t3) >= (te-3)){
-          httpPing();
-          gps();
-          if (!ping){httpPostMaster();}
-        }
+      if((t2 - t3) >= te){
+        if (!ping){httpPostMaster();}
       }
-    }
   }else {//if(digitalRead(8))
     if(getCounter()==0){httpPost1P();}else {httpPostMaster();}
-    httpPostCustom('0');powerDown(); 
+    //httpPostCustom('0');
+    powerDown(); 
     attachPinChangeInterrupt(digitalPinToPinChangeInterrupt(intPin), IntRoutine, RISING);
     Serial.flush();
     while (wakeUpCounter < 3) {
@@ -177,45 +172,46 @@ void loop() {
     }
     if (wakeUpCounter != 5) {
       powerUp();turnOnGns(); gprsOn(); 
-      wakeUpCounter = 0;httpPostCustom('1');
+      wakeUpCounter = 0;//httpPostCustom('1');
       httpPost1P();
     }else {//wakeUpCounter=5;
       Wire.beginTransmission(8);
       Wire.write('n');
       Wire.endTransmission();
       powerUp();turnOnGns();gprsOn();
-      wakeUpCounter = 0;httpPostCustom('1');
+      wakeUpCounter = 0;//httpPostCustom('1');
       httpPost1P();
     }
 
   }
 }
 void httpPostMaster(){
-  if ((getCounter() <= limitToSend)) {
+  if ((getCounter() < limitToSend)) {
     if(httpPostFromTo(0,getCounter())){
       clearMemoryDiff(0,getCounter()*66);
       clearMemoryDebug(32003);
       t3 = t2;
     }
   }else{
-    for (uint16_t i = 1; i<=(getCounter()/limitToSend); i++){
-      getGpsData();
-      if(getBatchCounter(i)==1){
-        if(httpPostFromTo((i-1)*limitToSend,(i)*limitToSend)){writeDataFramDebug("0",(32080+i));
+    uint16_t repetitions=getCounter()/limitToSend;
+    for (uint16_t i = 0; i<repetitions; i++){
+      // if(getBatchCounter(i)==1){
+        if(httpPostFromTo(i*limitToSend,((i+1)*limitToSend))){writeDataFramDebug("0",(32080+i));
         }
-      }
-      getGpsData();
+        gps();
+        repetitions=getCounter()/limitToSend;
+      // }
     }
     bool finiShed=true;
-    for (uint8_t i = 1; i <= (getCounter()/limitToSend); i++){if (getBatchCounter(i)==1){finiShed=false;}}
+    // for (uint8_t i = 1; i <= (getCounter()/limitToSend); i++){if (getBatchCounter(i)==1){finiShed=false;}}
     if(finiShed){
       if((getCounter()%limitToSend)!=0){
         uint16_t reps= getCounter()/limitToSend;         
           if(httpPostFromTo(reps*limitToSend,getCounter())){
             clearMemoryDiff(0,getCounter()*66); 
             clearMemoryDebug(32003);getGpsData();
-            t3 = t2;//httpPostCustom('7');
-          } else {getGpsData();httpPostCustom('8');}
+            t3 = t2;
+          } else {getGpsData();/*httpPostCustom('8');*/}
       }else{
         clearMemoryDiff(0,getCounter()*66); 
         clearMemoryDebug(32003);getGpsData();
@@ -229,13 +225,10 @@ bool gps(){
       if (!getGnsStat()) {if (gnsFailCounter == 2) {resetSS();} else {turnOnGns();delay(1000);gnsFailCounter++;}}
         if(restarted){if (ReStartCounter == 10) {resetSS();}else {delay(2000);ReStartCounter++;}
         }else if (started){if (FirstStartCounter == 1) {resetSS();}else{delay(60000);FirstStartCounter++;}
-        }else if((!restarted)&&(!started)){httpPostCustom('9');if (gpsFailCounter == 10) {resetSS();}else {delay(1000);gpsFailCounter++;}
-        }
+        }else if((!restarted)&&(!started)){/*httpPostCustom('9');*/if (gpsFailCounter == 10) {resetSS();}else {delay(1000);gpsFailCounter++;}}
         return false;
     }else
-    {
-      return true;
-    }
+    {return true;}
     
 }
 bool httpPostFromTo(uint16_t p1, uint16_t p2) {
@@ -316,9 +309,7 @@ void httpPing() {
     } else OkToSend = false;
   } else OkToSend = false;
   if (OkToSend) {
-    if (fireHttpAction(3000, "AT+HTTPACTION=", ",200,", "ERROR")) {
-      ping=false;
-    }
+    fireHttpAction(2500, "AT+HTTPACTION=", ",200,", "ERROR");
   }
 }
 bool httpPostWakeUp() {
@@ -349,6 +340,7 @@ bool httpPostWakeUp() {
     if (fireHttpAction(3000, "AT+HTTPACTION=", ",200,", "ERROR")) {return true;} else {return false;}
   }else{return false;}
 }
+/*
 bool httpPostCustom(char custom) {
   if(!ping){
     bool OkToSend = true;
@@ -379,7 +371,7 @@ bool httpPostCustom(char custom) {
       if (fireHttpAction(2000, "AT+HTTPACTION=", ",200,", "ERROR")) {return true;} else {return false;}
     }else{return false;}
   }else{return false;}
-}
+}*/
 bool httpPostSleeping() {
   bool OkToSend = true;
   if (sendAtFram(3000, 31254, 11, "OK", "ERROR", 5)) { //"AT+HTTPINIT"
@@ -981,11 +973,11 @@ bool fireHttpAction(long timeout, char* Commande, char* Rep, char* Error) {
   Serial.print(Commande);
   Serial.println(1, DEC);
   if(Serial.findUntil(Rep, Error)){
-    // sendAtFram(2000, 31241, 11, "OK", "ERROR", 5);
+    // sendAtFram(2000, 31241, 11, "OK", "ERROR", 5); // httpterm
+    ping =false;
     return true;
   } else{
     ping = true;startPinging=millis();
-    // sendAtFram(2000, 31241, 11, "OK", "ERROR", 5);
     return false;
     }
   Serial.setTimeout(1000);
