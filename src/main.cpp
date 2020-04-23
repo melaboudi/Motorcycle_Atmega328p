@@ -123,7 +123,7 @@
   int getBatchCounter(uint16_t i);
   void httpPostMaster();
   bool gps();
-  int limitToSend =8;
+  int limitToSend =7;
   unsigned long te = 28; //le temps entre les envoies
   void setup() {
   delay(100);
@@ -144,7 +144,7 @@
   }
   gprsOn();
   attachPinChangeInterrupt(digitalPinToPinChangeInterrupt(intPin), IntRoutine, RISING);
-  // writeDataFramDebug("x",32080);
+  writeDataFramDebug("x",32080);
   }
 
 void loop() {
@@ -196,9 +196,9 @@ void httpPostMaster(){
     }
   }else{
     uint16_t repetitions=getCounter()/limitToSend;
-    for (uint16_t i = 0; i<repetitions; i++){
+    for (uint16_t i = 1; i<=repetitions; i++){
       // if(getBatchCounter(i)==1){
-        if(httpPostFromTo(i*limitToSend,((i+1)*limitToSend))){writeDataFramDebug("0",(32080+i));
+        if(httpPostFromTo((i-1)*limitToSend,((i)*limitToSend))){writeDataFramDebug("0",(32080+i));
         }
         gps();
         repetitions=getCounter()/limitToSend;
