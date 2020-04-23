@@ -45,7 +45,6 @@
   unsigned long t2 = 0; //le temps du dernier point capté
   uint16_t ti = 6; //le temps entre chaque insertion
   unsigned long t3 = 0; //le temps du dernier envoie
-  unsigned long te = 20; //le temps entre les envoies
   unsigned long unixTimeInt = 0;
   uint16_t SizeRec = 66;
   bool wakeUp=true;
@@ -124,7 +123,8 @@
   int getBatchCounter(uint16_t i);
   void httpPostMaster();
   bool gps();
-  int limitToSend =7;
+  int limitToSend =8;
+  unsigned long te = 28; //le temps entre les envoies
   void setup() {
   delay(100);
   fram.begin();
@@ -144,16 +144,18 @@
   }
   gprsOn();
   attachPinChangeInterrupt(digitalPinToPinChangeInterrupt(intPin), IntRoutine, RISING);
+  // writeDataFramDebug("x",32080);
   }
 
 void loop() {
-  gps();
-    if(getCounter()>380){clearMemory(31999);clearMemoryDebug(32003);}
-    enablePinChangeInterrupt(digitalPinToPinChangeInterrupt(intPin));
-
+  if(getCounter()>380){clearMemory(31999);clearMemoryDebug(32003);}
+  enablePinChangeInterrupt(digitalPinToPinChangeInterrupt(intPin));
   if (!digitalRead(8)) {
-      httpPing();
       gps();
+      if((t2 - t3) >= (te-8)){
+        httpPing();gps();
+        if(ping){t3=t2;}else{t3=(t2-te);}
+      }
       if((t2 - t3) >= te){
         if (!ping){httpPostMaster();}
       }
@@ -209,12 +211,12 @@ void httpPostMaster(){
         uint16_t reps= getCounter()/limitToSend;         
           if(httpPostFromTo(reps*limitToSend,getCounter())){
             clearMemoryDiff(0,getCounter()*66); 
-            clearMemoryDebug(32003);getGpsData();
+            clearMemoryDebug(32003);
             t3 = t2;
-          } else {getGpsData();/*httpPostCustom('8');*/}
+          } 
       }else{
         clearMemoryDiff(0,getCounter()*66); 
-        clearMemoryDebug(32003);getGpsData();
+        clearMemoryDebug(32003);
         t3 = t2;//httpPostCustom('7');
       }
     }
