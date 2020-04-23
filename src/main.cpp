@@ -72,15 +72,17 @@
   char* one="1";
   char* zero="0";
   bool ping=true;
-  // bool httpPostCustom(char custom);
+  bool httpPostCustom(char custom);
   void badCharChecker(String data);
   void IntRoutine(void);
   // bool httpPostAll();
+  void httpPostMaster();
   // bool httpPostLimited();
   bool httpPostWakeUp();
   bool httpPostSleeping();
   void httpPing();
   void httpPost1P();
+  bool httpPostFromTo(uint16_t p1, uint16_t p2);
   void getWriteFromFramFromZero(uint16_t p1, uint16_t p2);
   void decrementCounter(uint16_t value);
   bool turnOnGns();
@@ -119,9 +121,7 @@
   void resetSS();
   void cfunReset();
   void hardResetSS();
-  bool httpPostFromTo(uint16_t p1, uint16_t p2);
   int getBatchCounter(uint16_t i);
-  void httpPostMaster();
   bool gps();
   int limitToSend =7;
   unsigned long te = 28; //le temps entre les envoies
@@ -197,28 +197,26 @@ void httpPostMaster(){
   }else{
     uint16_t repetitions=getCounter()/limitToSend;
     for (uint16_t i = 1; i<=repetitions; i++){
-      // if(getBatchCounter(i)==1){
+      if(getBatchCounter(i)==1){
         if(httpPostFromTo((i-1)*limitToSend,((i)*limitToSend))){writeDataFramDebug("0",(32080+i));
         }
         gps();
         repetitions=getCounter()/limitToSend;
-      // }
+      }
     }
     bool finiShed=true;
-    // for (uint8_t i = 1; i <= (getCounter()/limitToSend); i++){if (getBatchCounter(i)==1){finiShed=false;}}
+    for (uint8_t i = 1; i <= (getCounter()/limitToSend); i++){if (getBatchCounter(i)==1){finiShed=false;}}
     if(finiShed){
       if((getCounter()%limitToSend)!=0){
         uint16_t reps= getCounter()/limitToSend;         
           if(httpPostFromTo(reps*limitToSend,getCounter())){
             clearMemoryDiff(0,getCounter()*66); 
             clearMemoryDebug(32003);
-            t3 = t2;
-          } 
+            t3 = t2;} 
       }else{
         clearMemoryDiff(0,getCounter()*66); 
         clearMemoryDebug(32003);
-        t3 = t2;//httpPostCustom('7');
-      }
+        t3 = t2;}
     }
   }
 }
@@ -342,7 +340,6 @@ bool httpPostWakeUp() {
     if (fireHttpAction(3000, "AT+HTTPACTION=", ",200,", "ERROR")) {return true;} else {return false;}
   }else{return false;}
 }
-/*
 bool httpPostCustom(char custom) {
   if(!ping){
     bool OkToSend = true;
@@ -373,7 +370,7 @@ bool httpPostCustom(char custom) {
       if (fireHttpAction(2000, "AT+HTTPACTION=", ",200,", "ERROR")) {return true;} else {return false;}
     }else{return false;}
   }else{return false;}
-}*/
+}
 bool httpPostSleeping() {
   bool OkToSend = true;
   if (sendAtFram(3000, 31254, 11, "OK", "ERROR", 5)) { //"AT+HTTPINIT"
@@ -852,7 +849,7 @@ void insertMem() {
     // Wire.endTransmission();
   incrementCounter();
   // writeDataFramDebug(one,(32080+(getCounter()/limitToSend))-1);
-  if((getCounter()/limitToSend)>=1){writeDataFramDebug("1",(32080+(getCounter()/limitToSend)));}
+  if(((getCounter()/limitToSend)>=1)&&(getCounter()%limitToSend)==0){writeDataFramDebug("1",(32080+(getCounter()/limitToSend)));}
 }
 void incrementCounter() {
   int countVal = getCounter();
