@@ -125,6 +125,7 @@
   bool gps();
   int limitToSend =7;
   unsigned long te = 28; //le temps entre les envoies
+  String previousUnixTime="";
   void setup() {
   delay(100);
   fram.begin();
@@ -154,10 +155,7 @@ void loop() {
       gps();
       if((t2 - t3) >= (te-8)){
         httpPing();gps();
-        if(ping){t3=t2;}else{t3=(t2-te);}
-      }
-      if((t2 - t3) >= te){
-        if (!ping){httpPostMaster();}
+        if(ping){t3=t2;}else{httpPostMaster();}
       }
   }else {//if(digitalRead(8))
     if(getCounter()==0){httpPost1P();}else {httpPostMaster();}
@@ -309,7 +307,7 @@ void httpPing() {
     } else OkToSend = false;
   } else OkToSend = false;
   if (OkToSend) {
-    fireHttpAction(2500, "AT+HTTPACTION=", ",200,", "ERROR");
+    fireHttpAction(3500, "AT+HTTPACTION=", ",200,", "ERROR");
   }
 }
 bool httpPostWakeUp() {
@@ -608,7 +606,8 @@ bool getGpsData() {
     if (onOff) {
       trace(unixTimeInt, 1);
       onOff = false;}
-    if ((fixStatus.toInt() == 1) && (latitude.toInt() != 0) && (longitude.toInt() != 0)&&badCharCounter==0) {
+    if ((fixStatus.toInt() == 1) && (latitude.toInt() != 0) && (longitude.toInt() != 0)&&(badCharCounter==0)&&(lastUnixTime!=previousUnixTime)) {
+      previousUnixTime=lastUnixTime;
       started = false;
       restarted=false;
       insertMem();
