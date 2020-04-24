@@ -826,23 +826,23 @@ void insertMem() {
   //getWriteFromFram(31131,6); //"\" Dh=\""
   writeDataFram(lastUnixTime.c_str());                  //10
   //getWriteFromFram(31137,3); //"\"/>"
-  writeDataFram("00");
+  // // // // // // // // // // // // // // // // writeDataFram("00");
   /* Wire.requestFrom(8, 2);
     char reception[3]={0};
     if(Wire.available()){
       Wire.readBytes(reception,2);
       writeDataFram(reception);
     }else writeDataFram("00"); */
-    // // // // // // // // // //   Wire.requestFrom(8, 4);
-    // // // // // // // // // //   byte lb1; byte hb1; byte lb2; byte hb2;
-    // // // // // // // // // // while (Wire.available()){lb1=Wire.read();hb1=Wire.read();lb2=Wire.read();hb2=Wire.read();received=true;}
-    // // // // // // // // // //   if(received){
-    // // // // // // // // // //     char str1[3];sprintf(str1, "%d", word(hb1,lb1));
-    // // // // // // // // // //     char str2[3];sprintf(str2, "%d", word(hb2,lb2));
-    // // // // // // // // // //     writeDataFram(str1);
-    // // // // // // // // // //     writeDataFram(str2);
-    // // // // // // // // // //     received=false;
-    // // // // // // // // // //   }else {writeDataFram("00");}
+  Wire.requestFrom(8, 4);
+  byte lb1; byte hb1; byte lb2; byte hb2;
+  while (Wire.available()){lb1=Wire.read();hb1=Wire.read();lb2=Wire.read();hb2=Wire.read();received=true;}
+    if(received){
+      char str1[3];sprintf(str1, "%d", word(hb1,lb1));
+      char str2[3];sprintf(str2, "%d", word(hb2,lb2));
+      writeDataFram(str1);
+      writeDataFram(str2);
+      received=false;
+    }else {writeDataFram("00");}
     // Wire.beginTransmission(8);
     // Wire.write('r');
     // Wire.endTransmission();
@@ -1011,3 +1011,4 @@ bool insertGpsData() {
     return true;
   } else return false;
 }
+
