@@ -126,6 +126,7 @@
   int limitToSend =7;
   unsigned long te = 28; //le temps entre les envoies
   String previousUnixTime="";
+  uint16_t iterations=440; //sleeping time = iterations X 8 Seconds
   void setup() {
   delay(100);
   fram.begin();
@@ -151,38 +152,38 @@
 void loop() {
   if(getCounter()>380){clearMemory(31999);clearMemoryDebug(32003);}
   enablePinChangeInterrupt(digitalPinToPinChangeInterrupt(intPin));
-  if (!digitalRead(8)) {
+  if (digitalRead(8)) {
       gps();
       if((t2 - t3) >= (te-8)){
         httpPing();gps();
         if(ping){t3=t2;}else{httpPostMaster();}
       }
   }else {//if(digitalRead(8))
-    if(getCounter()==0){httpPost1P();}else {httpPostMaster();}
-    //httpPostCustom('0');
-    powerDown(); 
+    httpPing();gps();
+    if(!ping){httpPostMaster();}
+    httpPostCustom('0');
+    powerDown();
     attachPinChangeInterrupt(digitalPinToPinChangeInterrupt(intPin), IntRoutine, RISING);
     Serial.flush();
-    while (wakeUpCounter < 3) {
+    while (wakeUpCounter <= iterations) {
       Wire.beginTransmission(8);
       Wire.write('f');
       Wire.endTransmission();
       LowPower.idle(SLEEP_8S, ADC_OFF, TIMER2_OFF, TIMER1_OFF, TIMER0_OFF, SPI_OFF, USART0_ON, TWI_OFF);
       wakeUpCounter++;
     }
-    if (wakeUpCounter != 5) {
-      powerUp();turnOnGns(); gprsOn(); 
-      wakeUpCounter = 0;//httpPostCustom('1');
-      httpPost1P();
-    }else {//wakeUpCounter=5;
+    if (wakeUpCounter != (iterations+1)) {                  //Vehicule ignition wakeup
       Wire.beginTransmission(8);
       Wire.write('n');
       Wire.endTransmission();
+      powerUp();turnOnGns(); gprsOn(); 
+      wakeUpCounter = 0;
+      httpPostCustom('1');
+    }else {                                                 //WD timer wakeups
       powerUp();turnOnGns();gprsOn();
-      wakeUpCounter = 0;//httpPostCustom('1');
-      httpPost1P();
+      wakeUpCounter = 0;
+      httpPostCustom('1');
     }
-
   }
 }
 void httpPostMaster(){
@@ -310,34 +311,6 @@ void httpPing() {
     fireHttpAction(3500, "AT+HTTPACTION=", ",200,", "ERROR");
   }
 }
-bool httpPostWakeUp() {
-  bool OkToSend = true;
-  if (sendAtFram(3000, 31254, 11, "OK", "ERROR", 5)) { //"AT+HTTPINIT"
-    if (sendAtFram(3000, 31267, 19, "OK", "ERROR", 5)) { //"AT+HTTPPARA=\"CID\",1"
-      if (sendAtFram(15000, 31609, 73, "OK", "ERROR", 5)) { //"AT+HTTPPARA=\"URL\",\"http://casa-interface.casabaia.ma/commandes.php\""
-        Serial.setTimeout(10000);
-        flushSim();
-        Serial.print("AT+HTTPDATA=");
-        delay(100);
-        uint16_t Size = 26;
-        Serial.print(Size);
-        Serial.print(",");
-        uint32_t maxTime = 30000;
-        Serial.println(maxTime);
-        Serial.findUntil("DOWNLOAD", "ERROR");
-        //String dataToSend="";
-    //sprintf(dataToSend.c_str(), "[{\"S\":\"%c1\"]}", imei.c_str());
-    Serial.print("[{\"S\":\"");
-    Serial.print(imei.c_str());
-    Serial.print("1\"}]");
-        Serial.findUntil("OK", "OK");
-      } else OkToSend = false;
-    } else OkToSend = false;
-  } else OkToSend = false;
-  if (OkToSend) {
-    if (fireHttpAction(3000, "AT+HTTPACTION=", ",200,", "ERROR")) {return true;} else {return false;}
-  }else{return false;}
-}
 bool httpPostCustom(char custom) {
   if(!ping){
     bool OkToSend = true;
@@ -354,12 +327,10 @@ bool httpPostCustom(char custom) {
           uint32_t maxTime = 30000;
           Serial.println(maxTime);
           Serial.findUntil("DOWNLOAD", "ERROR");
-          //String dataToSend="";
-      //sprintf(dataToSend.c_str(), "[{\"S\":\"%c1\"]}", imei.c_str());
-      Serial.print("[{\"S\":\"");
-      Serial.print(imei.c_str());
-      Serial.print(custom);
-      Serial.print("\"}]");
+          Serial.print("[{\"S\":\"");
+          Serial.print(imei.c_str());
+          Serial.print(custom);
+          Serial.print("\"}]");
           Serial.findUntil("OK", "OK");
         } else OkToSend = false;
       } else OkToSend = false;
@@ -402,53 +373,42 @@ bool httpPostSleeping() {
   }
 }
 void httpPost1P() {
-  sendAtFram(3000, 31241, 11, "OK", "ERROR", 5);
+  // sendAtFram(3000, 31241, 11, "OK", "ERROR", 5);
   batLev=batteryLevel();
-    if (getGnsStat() == 1) {
+  if (getGnsStat() == 1) {
     if (getGpsData()) {
     OkToSend = true;
     if (sendAtFram(3000, 31254, 11, "OK", "ERROR", 5)) { //"AT+HTTPINIT"
-    if (sendAtFram(3000, 31267, 19, "OK", "ERROR", 5)) { //"AT+HTTPPARA=\"CID\",1"
-      if (sendAtFram(15000, 31609, 73, "OK", "ERROR", 5)) { //"AT+HTTPPARA=\"URL\",\"http://casa-interface.casabaia.ma/commandes.php\""
-    Serial.setTimeout(10000);
-    flushSim();
-    Serial.print("AT+HTTPDATA=");
-    delay(100);
-    Size = 76;
-    Serial.print(Size);
-    Serial.print(",");
-    maxTime = 30000;
-    Serial.println(maxTime);
-    Serial.findUntil("DOWNLOAD", "ERROR");
-        Serial.print("[{\"P\":\"");
-        //Serial.print("869170031849640");
-    Serial.print(imei.c_str());                      //15
-        //Serial.print("1");
-    Serial.print(fixStatus.c_str());                     //1
-        //Serial.print("2222222222");
-    Serial.print(latitude.c_str());                      //10
-        //Serial.print("33333333333");
-    Serial.print(longitude.c_str());                     //11
-        //Serial.print("444444");
-    Serial.print(speed.c_str());                       //6
-        //Serial.print("55");
-    Serial.print(used_satellites.c_str());               //2
-        //Serial.print("666666");
-    Serial.print(course.c_str());                      //6
-        //Serial.print("777");
-    Serial.print(batLev.c_str());                        //3
-        //Serial.print("8888888888");
-    Serial.print(lastUnixTime.c_str());
-        
-    Serial.print("00\"}]");
-        Serial.findUntil("OK", "OK");
-          } else OkToSend = false;
+      if (sendAtFram(3000, 31267, 19, "OK", "ERROR", 5)) { //"AT+HTTPPARA=\"CID\",1"
+        if (sendAtFram(15000, 31609, 73, "OK", "ERROR", 5)) { //"AT+HTTPPARA=\"URL\",\"http://casa-interface.casabaia.ma/commandes.php\""
+          Serial.setTimeout(10000);
+          flushSim();
+          Serial.print("AT+HTTPDATA=");
+          delay(100);
+          Size = 76;
+          Serial.print(Size);
+          Serial.print(",");
+          maxTime = 30000;
+          Serial.println(maxTime);
+          Serial.findUntil("DOWNLOAD", "ERROR");
+          Serial.print("[{\"P\":\"");                         //7
+          Serial.print(imei.c_str());                         //15
+          Serial.print(fixStatus.c_str());                    //1
+          Serial.print(latitude.c_str());                     //10
+          Serial.print(longitude.c_str());                    //11
+          Serial.print(speed.c_str());                        //6
+          Serial.print(used_satellites.c_str());              //2
+          Serial.print(course.c_str());                       //6
+          Serial.print(batLev.c_str());                       //3
+          Serial.print(lastUnixTime.c_str());                 //10
+          Serial.print("00\"}]");                             //5
+          Serial.findUntil("OK", "OK");
         } else OkToSend = false;
       } else OkToSend = false;
-      if (OkToSend) {fireHttpAction(httpTimeout, "AT+HTTPACTION=", ",200,", "ERROR");}
+    } else OkToSend = false;
+    if (OkToSend) {fireHttpAction(httpTimeout, "AT+HTTPACTION=", ",200,", "ERROR");}
     }
   }
-
 }
 void getWriteFromFramFromZero(uint16_t p1, uint16_t p2) {
   framWritePosition = 0;
@@ -461,7 +421,7 @@ void getWriteFromFramFromZero(uint16_t p1, uint16_t p2) {
   }
 }
 void IntRoutine() {
-   wakeUpCounter = 4;
+   wakeUpCounter = iterations;
   Serial.flush();
   detachPinChangeInterrupt(digitalPinToPinChangeInterrupt(intPin));
 }
@@ -843,9 +803,9 @@ void insertMem() {
       writeDataFram(str2);
       received=false;
     }else {writeDataFram("00");}
-    // Wire.beginTransmission(8);
-    // Wire.write('r');
-    // Wire.endTransmission();
+    Wire.beginTransmission(8);
+    Wire.write('r');
+    Wire.endTransmission();
   incrementCounter();
   // writeDataFramDebug(one,(32080+(getCounter()/limitToSend))-1);
   if(((getCounter()/limitToSend)>=1)&&(getCounter()%limitToSend)==0){writeDataFramDebug("1",(32080+(getCounter()/limitToSend)));}
