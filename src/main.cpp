@@ -158,7 +158,7 @@ void loop() {
         httpPing();gps();
         if(ping){t3=t2;}else{httpPostMaster();}
       }
-  }else {//if(digitalRead(8))
+  }else {//if(!digitalRead(8))j
     httpPing();gps();
     if(!ping){httpPostMaster();}
     httpPostCustom('0');
