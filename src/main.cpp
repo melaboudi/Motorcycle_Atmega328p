@@ -34,6 +34,8 @@
   unsigned long previousMillisGps = 0;
   const long intervalGps = 200000;
   unsigned long currentMillis = 0;
+  unsigned long previousMillis = 0;
+  const long interval = 60000;
   uint16_t gpsFailCounter = 0;
   bool started = true;
   bool restarted = false;
@@ -128,6 +130,7 @@
   String previousUnixTime="0";
   uint16_t iterations=440; //sleeping time = iterations X 8 Seconds
   void powerCheck();
+  bool gpsCheck(uint16_t waitInterval);
   void setup() {
   delay(100);
   fram.begin();
@@ -156,42 +159,57 @@ void loop() {
   enablePinChangeInterrupt(digitalPinToPinChangeInterrupt(intPin));
   if (digitalRead(8)) {
       powerCheck();
-      gps();
-      if((t2 - t3) >= (te-8)){
-        httpPing();gps();
-        if(ping){t3=t2;}else{httpPostMaster();}
-      }
-  }else {//if(!digitalRead(8))j
-    httpPing();
-    while(!gps());
-    if(!ping){httpPostMaster();}
-    httpPostCustom('0');
-    powerDown();
-    attachPinChangeInterrupt(digitalPinToPinChangeInterrupt(intPin), IntRoutine, RISING);
-    Serial.flush();
-    while (wakeUpCounter <= iterations) {
-      Wire.beginTransmission(8);
-      Wire.write('f');
-      Wire.endTransmission();
-      LowPower.idle(SLEEP_8S, ADC_OFF, TIMER2_OFF, TIMER1_OFF, TIMER0_OFF, SPI_OFF, USART0_ON, TWI_OFF);
-      wakeUpCounter++;
-    }
-    if (wakeUpCounter != (iterations+1)) {                  //Vehicule ignition wakeup
-      Wire.beginTransmission(8);
-      Wire.write('n');
-      Wire.endTransmission();
-      powerUp();
-      powerCheck();
-      turnOnGns(); gprsOn(); 
-      wakeUpCounter = 0;
-      httpPostCustom('1');
-    }else {                                                 //WD timer wakeups
-      powerUp();
-      powerCheck();
-      turnOnGns();gprsOn();
-      wakeUpCounter = 0;
-      httpPostCustom('1');
-    }
+      uint16_t waitInterval=0;
+      if (started==true){waitInterval=60000;}else{waitInterval=4000;}
+      if (gpsCheck(waitInterval))
+      {
+        if((t2 - t3) >= (te-8)){
+          httpPing();gps();
+          if(ping){t3=t2;}else{httpPostMaster();}
+        }
+      }else{resetSS();}
+  }else {//if(!digitalRead(8))
+    if (gpsCheck(60000))
+      {
+        httpPing();
+        if(!ping){httpPostMaster();}
+        httpPostCustom('0');
+        powerDown();
+        attachPinChangeInterrupt(digitalPinToPinChangeInterrupt(intPin), IntRoutine, RISING);
+        Serial.flush();
+        while (wakeUpCounter <= iterations) {
+          Wire.beginTransmission(8);
+          Wire.write('f');
+          Wire.endTransmission();
+          LowPower.idle(SLEEP_8S, ADC_OFF, TIMER2_OFF, TIMER1_OFF, TIMER0_OFF, SPI_OFF, USART0_ON, TWI_OFF);
+          wakeUpCounter++;
+        }
+        if (wakeUpCounter != (iterations+1)) {                  //Vehicule ignition wakeup
+          Wire.beginTransmission(8);
+          Wire.write('n');
+          Wire.endTransmission();
+          powerUp();
+          powerCheck();
+          turnOnGns(); gprsOn(); 
+          wakeUpCounter = 0;
+          httpPostCustom('1');
+        }else {                                                 //WD timer wakeups
+          powerUp();
+          powerCheck();
+          turnOnGns();gprsOn();
+          wakeUpCounter = 0;
+          httpPostCustom('1');
+        }
+      }else{resetSS();}
+  }
+}
+bool gpsCheck(uint16_t waitInterval){
+  currentMillis = millis();
+  previousMillis = millis();
+  while((!gps())&&((currentMillis - previousMillis) <= waitInterval)){
+    currentMillis=millis();
+    if ((currentMillis - previousMillis) > waitInterval)
+    {return true;}else{return false;}
   }
 }
 void httpPostMaster(){
