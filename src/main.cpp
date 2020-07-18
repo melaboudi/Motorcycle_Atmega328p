@@ -127,6 +127,7 @@
   unsigned long te = 28; //le temps entre les envoies
   String previousUnixTime="";
   uint16_t iterations=440; //sleeping time = iterations X 8 Seconds
+  void powerCheck();
   void setup() {
   delay(100);
   fram.begin();
@@ -138,10 +139,11 @@
   digitalWrite(6, HIGH);
   digitalWrite(3, HIGH);
   powerUp();
+  powerCheck();
   Serial.begin(4800);
   turnOnGns();
   getImei();
-  while (getGsmStat() != 1) {
+  while ((getGsmStat() != 1&&(getGsmStat() != 5))) {
     delay(500);
   }
   gprsOn();
@@ -153,6 +155,7 @@ void loop() {
   if(getCounter()>380){clearMemory(31999);clearMemoryDebug(32003);}
   enablePinChangeInterrupt(digitalPinToPinChangeInterrupt(intPin));
   if (digitalRead(8)) {
+      powerCheck();
       gps();
       if((t2 - t3) >= (te-8)){
         httpPing();gps();
@@ -176,11 +179,15 @@ void loop() {
       Wire.beginTransmission(8);
       Wire.write('n');
       Wire.endTransmission();
-      powerUp();turnOnGns(); gprsOn(); 
+      powerUp();
+      powerCheck();
+      turnOnGns(); gprsOn(); 
       wakeUpCounter = 0;
       httpPostCustom('1');
     }else {                                                 //WD timer wakeups
-      powerUp();turnOnGns();gprsOn();
+      powerUp();
+      powerCheck();
+      turnOnGns();gprsOn();
       wakeUpCounter = 0;
       httpPostCustom('1');
     }
@@ -704,6 +711,7 @@ void writeDataFramDebug(char* dataFram, long p1) {
     fram.write8(i, dataFram[(i - p1)]);
   }
 }
+
 void powerUp() {
   while (analogRead(A3) < 200) {
     pinMode(5, OUTPUT);//PWR KEY
@@ -713,6 +721,7 @@ void powerUp() {
     delay(100);
   }
 }
+
 void powerDown() {
   while (analogRead(A3) > 200) {
     pinMode(5, OUTPUT);//PWR KEY
@@ -745,6 +754,7 @@ void simHardReset() {
   delay(200);
   digitalWrite(6, HIGH);
   powerUp();
+  powerCheck();
   Serial.begin(4800);
 }
 void clearMemory(int size) {
@@ -857,7 +867,7 @@ void incrementValue(uint16_t position, uint8_t largeur) {
 void resetSS() {
   cfunReset();
   turnOnGns();
-  while (getGsmStat() != 1) {
+  while ((getGsmStat() != 1)&&(getGsmStat() != 5))  {
     delay(500);
   }
   gprsOn();
@@ -879,7 +889,7 @@ void hardResetSS() {
   sendAtFram(6000, 31730, 11, "OK", "ERROR", 1);  //CFUN=1,1
   Serial.begin(4800);
   turnOnGns();
-  while (getGsmStat() != 1) {delay(500);}
+  while ((getGsmStat() != 1)&&(getGsmStat() != 5))  {delay(500);}
   gprsOn();
   restarted=true;
   gnsFailCounter = 0;
@@ -972,3 +982,18 @@ bool insertGpsData() {
   } else return false;
 }
 
+void powerCheck(){
+if (digitalRead(A3)==LOW)
+  {
+    digitalWrite(6, HIGH);
+    digitalWrite(8, HIGH);
+    powerDown();
+    powerUp();
+    Serial.begin(4800);
+    turnOnGns();
+    while ((getGsmStat() != 1)&&(getGsmStat() != 5) ){
+      delay(500);
+    }
+    while (!gps());
+  }
+}
