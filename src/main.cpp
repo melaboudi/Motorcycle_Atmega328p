@@ -160,16 +160,16 @@ void loop() {
   if (digitalRead(8)) {
       powerCheck();
       uint16_t waitInterval=0;
-      if (started==true){waitInterval=60000;}else{waitInterval=4000;}
+      if (started==true){waitInterval=120000;}else{waitInterval=4000;}
       if (gpsCheck(waitInterval))
       {
         if((t2 - t3) >= (te-8)){
           httpPing();gps();
           if(ping){t3=t2;}else{httpPostMaster();}
         }
-      }else{resetSS();}
+      }else{resetSS();delay(10000);}
   }else {//if(!digitalRead(8))
-    if (gpsCheck(60000))
+    if (gpsCheck(120000))
       {
         httpPing();
         if(!ping){httpPostMaster();}
@@ -200,7 +200,7 @@ void loop() {
           wakeUpCounter = 0;
           httpPostCustom('1');
         }
-      }else{resetSS();}
+      }else{resetSS();delay(60000);}
   }
 }
 bool gpsCheck(uint16_t waitInterval){
