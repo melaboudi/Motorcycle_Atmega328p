@@ -115,7 +115,7 @@
   void incrementValue(uint16_t position, uint8_t largeur);
   bool sendAtFram(long timeout, uint16_t pos1, uint16_t pos2, char* Rep, char* Error, int nbRep);
   bool fireHttpAction(long timeout, char* Commande, char* Rep, char* Error);
-  void trace(unsigned long unixTime, uint8_t type);
+  // void trace(unsigned long unixTime, uint8_t type);
   void clearValue();
   bool insertGpsData();
   void resetSS();
@@ -162,7 +162,8 @@ void loop() {
         if(ping){t3=t2;}else{httpPostMaster();}
       }
   }else {//if(!digitalRead(8))j
-    httpPing();gps();
+    httpPing();
+    while(!gps());
     if(!ping){httpPostMaster();}
     httpPostCustom('0');
     powerDown();
@@ -570,10 +571,8 @@ bool getGpsData() {
     badCharChecker(batteryLevel());
     badCharChecker(lastUnixTime);
  
-    if (onOff) {
-      trace(unixTimeInt, 1);
-      onOff = false;}
-    if ((fixStatus.toInt() == 1) && (latitude.toInt() != 0) && (longitude.toInt() != 0)&&(badCharCounter==0)&&(lastUnixTime!=previousUnixTime)) {
+    if (onOff) {/*trace(unixTimeInt, 1);*/onOff = false;}
+    if ((fixStatus.toInt() == 1) && (latitude.toInt() > 20) && (longitude.toInt() < 0)&&(badCharCounter==0)&&(lastUnixTime!=previousUnixTime)) {
       previousUnixTime=lastUnixTime;
       started = false;
       restarted=false;
@@ -952,24 +951,24 @@ bool fireHttpAction(long timeout, char* Commande, char* Rep, char* Error) {
     }
   Serial.setTimeout(1000);
 }
-void trace(unsigned long unixTime, uint8_t type) {
-  uint8_t jour = (int)(((unixTime / 86400) + 4) % 7) + 1; //1 dimanche
-  uint16_t positionEcriture = 32000 + jour * 10;
-  if (jour == 2) {
-    clearValue();
-  }
-  switch (type) {
-    case 1:
-      incrementValue(positionEcriture, 2);
-      break;
-    case 2:
-      incrementValue(positionEcriture + 3, 3);
-      break;
-    case 3:
-      incrementValue(positionEcriture + 6, 3);
-      break;
-  }
-}
+// void trace(unsigned long unixTime, uint8_t type) {
+//   uint8_t jour = (int)(((unixTime / 86400) + 4) % 7) + 1; //1 dimanche
+//   uint16_t positionEcriture = 32000 + jour * 10;
+//   if (jour == 2) {
+//     clearValue();
+//   }
+//   switch (type) {
+//     case 1:
+//       incrementValue(positionEcriture, 2);
+//       break;
+//     case 2:
+//       incrementValue(positionEcriture + 3, 3);
+//       break;
+//     case 3:
+//       incrementValue(positionEcriture + 6, 3);
+//       break;
+//   }
+// }
 void clearValue() {
   if (getValue(32010, 2) > 0 ) {
     clearMemoryDiff(32010, 32080);
