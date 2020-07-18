@@ -148,7 +148,7 @@
   }
   gprsOn();
   attachPinChangeInterrupt(digitalPinToPinChangeInterrupt(intPin), IntRoutine, RISING);
-  writeDataFramDebug("x",32080);
+  // writeDataFramDebug("x",32080);
   }
 
 void loop() {
@@ -701,6 +701,7 @@ void writeDataFram(char* dataFram) {
   uint8_t dataFramSize = strlen(dataFram);
   for (unsigned long i = framWritePosition; i <= (dataFramSize + framWritePosition); i++)
   {
+    delay(1);
     fram.write8(i, dataFram[(i - framWritePosition)]);
   } framWritePosition += (dataFramSize) ;
 }
@@ -708,6 +709,7 @@ void writeDataFramDebug(char* dataFram, long p1) {
   //for (unsigned long i = p1; i <= (p1 + strlen(dataFram)); i++)
   for (unsigned long i = p1; i < (p1 + strlen(dataFram)); i++)
   {
+    delay(1);
     fram.write8(i, dataFram[(i - p1)]);
   }
 }
