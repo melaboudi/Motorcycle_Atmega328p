@@ -125,7 +125,7 @@
   bool gps();
   int limitToSend =7;
   unsigned long te = 28; //le temps entre les envoies
-  String previousUnixTime="";
+  String previousUnixTime="0";
   uint16_t iterations=440; //sleeping time = iterations X 8 Seconds
   void powerCheck();
   void setup() {
