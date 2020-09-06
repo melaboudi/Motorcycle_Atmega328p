@@ -128,30 +128,31 @@
   int limitToSend =7;
   unsigned long te = 28; //le temps entre les envoies
   String previousUnixTime="0";
-  uint16_t iterations=440; //sleeping time = iterations X 8 Seconds
+  uint16_t iterations=1760; //sleeping time = iterations X 8 Seconds
   void powerCheck();
   bool gpsCheck(uint16_t waitInterval);
   void setup() {
-  delay(100);
-  fram.begin();
-  pinMode(3, OUTPUT);//VIO
-  pinMode(A3, INPUT);//sim Power Status
-  pinMode(0, INPUT);//SS RX
-  pinMode(1, OUTPUT);//SS TX
-  pinMode(6, OUTPUT);//sim Reset
-  digitalWrite(6, HIGH);
-  digitalWrite(3, HIGH);
-  powerUp();
-  powerCheck();
-  Serial.begin(4800);
-  turnOnGns();
-  getImei();
-  while ((getGsmStat() != 1&&(getGsmStat() != 5))) {
-    delay(500);
-  }
-  gprsOn();
-  attachPinChangeInterrupt(digitalPinToPinChangeInterrupt(intPin), IntRoutine, RISING);
-  // writeDataFramDebug("x",32080);
+    delay(100);
+    fram.begin();
+    pinMode(3, OUTPUT);//VIO
+    pinMode(A3, INPUT);//sim Power Status
+    pinMode(0, INPUT);//SS RX
+    pinMode(1, OUTPUT);//SS TX
+    pinMode(6, OUTPUT);//sim Reset
+    digitalWrite(6, HIGH);
+    digitalWrite(3, HIGH);
+    powerUp();
+    powerCheck();
+    Serial.begin(4800);
+    turnOnGns();
+    getImei();
+    while ((getGsmStat() != 1&&(getGsmStat() != 5))) {
+      delay(500);
+    }
+    while (!gps());
+    gprsOn();
+    attachPinChangeInterrupt(digitalPinToPinChangeInterrupt(intPin), IntRoutine, RISING);
+    // writeDataFramDebug("x",32080);
   }
 
 void loop() {
@@ -590,13 +591,13 @@ bool getGpsData() {
     badCharChecker(lastUnixTime);
  
     if (onOff) {/*trace(unixTimeInt, 1);*/onOff = false;}
-    if ((fixStatus.toInt() == 1) && (latitude.toInt() > 20) && (longitude.toInt() < 0)&&(badCharCounter==0)&&(lastUnixTime!=previousUnixTime)) {
+     if ((fixStatus.toInt() == 1) && (latitude.toInt() > 20) && (longitude.toInt() < 0)&&(badCharCounter==0)&&(lastUnixTime!=previousUnixTime)) {
       previousUnixTime=lastUnixTime;
       started = false;
       restarted=false;
       insertMem();
       return true;
-    } else {return false;badCharCounter=0;}  
+    } else {return false;badCharCounter=0;} 
 }
 void sendAtCom(char *AtCom) {
   flushSim();
