@@ -286,7 +286,13 @@ bool httpPostFromTo(uint16_t p1, uint16_t p2) {
                 delay(1);
               }
               uint16_t test = fram.read8(j);
-              sprintf(Buffer, "%c", test);
+              if ((test==0)||(test==32))
+              {
+                sprintf(Buffer, "%c", 120); //x
+              }else
+              {
+                sprintf(Buffer, "%c", test);
+              }
               Serial.write(Buffer);
               delay(1);
             }
@@ -443,7 +449,13 @@ void getWriteFromFramFromZero(uint16_t p1, uint16_t p2) {
   {
     uint8_t test = fram.read8(a);
     char Buffer[2] = {0};
-    sprintf(Buffer, "%c", test);
+    if ((test==0)||(test==32))
+      {
+        sprintf(Buffer, "%c", 120); //x
+      }else
+      {
+        sprintf(Buffer, "%c", test);
+      }
     writeDataFram(Buffer);
   }
 }
