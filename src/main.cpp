@@ -156,7 +156,7 @@
   }
 
 void loop() {
-  if(getCounter()>380){clearMemory(31999);clearMemoryDebug(32003);}
+  if(getCounter()>380){clearMemory(30999);clearMemoryDebug(32003);}
   enablePinChangeInterrupt(digitalPinToPinChangeInterrupt(intPin));
   if (digitalRead(8)) {
       powerCheck();
