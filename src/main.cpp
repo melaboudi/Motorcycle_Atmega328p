@@ -74,6 +74,7 @@
   char* one="1";
   char* zero="0";
   bool ping=true;
+  uint8_t noGsmCounter=0;
   bool httpPostCustom(char custom);
   void badCharChecker(String data);
   void IntRoutine(void);
@@ -160,15 +161,30 @@ void loop() {
   enablePinChangeInterrupt(digitalPinToPinChangeInterrupt(intPin));
   if (digitalRead(8)) {
       powerCheck();
-      uint16_t waitInterval=0;
-      if (started==true){waitInterval=120000;}else{waitInterval=4000;}
-      if (gpsCheck(waitInterval))
-      {
-        if((t2 - t3) >= (te-8)){
-          httpPing();gps();
-          if(ping){t3=t2;}else{httpPostMaster();}
-        }
-      }else{resetSS();delay(10000);}
+      if ((getGsmStat() != 1)&&(getGsmStat() != 5)) { 
+        delay(5000);
+        noGsmCounter++;     
+        if (noGsmCounter==2)
+          {
+            noGsmCounter=0;
+            powerDown();
+            powerUp();
+            Serial.begin(4800);
+            turnOnGns();
+            delay(20000);
+            if ((getGsmStat() == 1)||(getGsmStat() == 5)) {gpsCheck(120000);}            
+          }
+      }else{
+        uint16_t waitInterval=0;
+        if (started==true){waitInterval=120000;}else{waitInterval=4000;}
+        if (gpsCheck(waitInterval))
+        {
+          if((t2 - t3) >= (te-8)){
+            httpPing();gps();
+            if(ping){t3=t2;}else{httpPostMaster();}
+          }
+        }else{resetSS();delay(10000);}
+      }
   }else {//if(!digitalRead(8))
     if (gpsCheck(120000))
       {
@@ -646,8 +662,10 @@ uint8_t getGsmStat() {
 }
 String batteryLevel() {
   flushSim();
+  Serial.setTimeout(1000);
   Serial.println("AT+CBC");
-  String tempGSM = Serial.readString();
+  String tempGSM = "0";
+  tempGSM=Serial.readString();
   int ind1 = tempGSM.indexOf(',');
   int ind2 = tempGSM.indexOf(',', ind1 + 1);
   //String chargeState = tempGSM.substring( 1, ind1 + 1);
@@ -752,6 +770,8 @@ void powerUp() {
     pinMode(5, INPUT_PULLUP);
     delay(100);
   }
+  noGsmCounter=0;
+
 }
 
 void powerDown() {
@@ -820,7 +840,7 @@ void insertMem() {
   //getWriteFromFram(31094,7); //"\" Vit=\""
   writeDataFram(speed.c_str());                   //6
   //getWriteFromFram(31101,7); //"\" Sat=\""
-  writeDataFram(used_satellites.c_str());             //2
+  writeDataFram(used_satellites.c_str());          {}   //2
   //getWriteFromFram(31108,7); //"\" Cap=\""
   writeDataFram(course.c_str());                  //6
   //getWriteFromFram(31115,16); //"\" BatteryLevel=\""
@@ -909,6 +929,7 @@ void resetSS() {
   httpActionFail = 0;
   FirstStartCounter = 0;
   ReStartCounter=0;
+  noGsmCounter=0;
 }
 void hardResetSS() {
   // pinMode(5, OUTPUT);//PWR KEY
