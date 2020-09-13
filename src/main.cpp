@@ -1,12 +1,11 @@
 //inits
   #include "arduino.h"
   #include "LowPower.h"
-
   #include "PinChangeInterrupt.h"
   //#define intPin A4
   #define intPin 8
   volatile bool flag=false;
-  bool received=false;
+  bool received=false;  
 
   #include "Adafruit_FRAM_I2C.h"
   Adafruit_FRAM_I2C fram     = Adafruit_FRAM_I2C();
@@ -126,12 +125,12 @@
   void hardResetSS();
   int getBatchCounter(uint16_t i);
   bool gps();
+  void powerCheck();
+  bool gpsCheck(uint16_t waitInterval);
   int limitToSend =7;
   unsigned long te = 28; //le temps entre les envoies
   String previousUnixTime="0";
   uint16_t iterations=1760; //sleeping time = iterations X 8 Seconds
-  void powerCheck();
-  bool gpsCheck(uint16_t waitInterval);
   void setup() {
     delay(100);
     fram.begin();
@@ -157,7 +156,7 @@
   }
 
 void loop() {
-  if(getCounter()>380){clearMemory(30999);clearMemoryDebug(32003);}
+  if(getCounter()>380){clearMemory(30999);clearMemoryDebug(32003);resetSS();}
   enablePinChangeInterrupt(digitalPinToPinChangeInterrupt(intPin));
   if (digitalRead(8)) {
       powerCheck();
@@ -1036,17 +1035,17 @@ bool insertGpsData() {
 }
 
 void powerCheck(){
-if (digitalRead(A3)==LOW)
-  {
-    digitalWrite(6, HIGH);
-    digitalWrite(8, HIGH);
-    powerDown();
-    powerUp();
-    Serial.begin(4800);
-    turnOnGns();
-    while ((getGsmStat() != 1)&&(getGsmStat() != 5) ){
-      delay(500);
+  if (digitalRead(A3)==LOW)
+    {
+      digitalWrite(6, HIGH);
+      digitalWrite(8, HIGH);
+      powerDown();
+      powerUp();
+      Serial.begin(4800);
+      turnOnGns();
+      while ((getGsmStat() != 1)&&(getGsmStat() != 5) ){
+        delay(500);
+      }
+      gpsCheck(120000);
     }
-    while (!gps());
-  }
 }
