@@ -127,6 +127,7 @@
   bool gps();
   void powerCheck();
   bool gpsCheck(uint16_t waitInterval);
+  bool gsmCheck(uint16_t waitInterval);
   int limitToSend =7;
   unsigned long te = 28; //le temps entre les envoies
   String previousUnixTime="0";
@@ -146,9 +147,7 @@
     Serial.begin(4800);
     turnOnGns();
     getImei();
-    while ((getGsmStat() != 1&&(getGsmStat() != 5))) {
-      delay(500);
-    }
+    gsmCheck(20000);
     while (!gps());
     gprsOn();
     attachPinChangeInterrupt(digitalPinToPinChangeInterrupt(intPin), IntRoutine, RISING);
@@ -160,19 +159,14 @@ void loop() {
   if(getCounter()>380){clearMemory(30999);clearMemoryDebug(32003);resetSS();}
   if (digitalRead(8)) {
       powerCheck();
-      if ((getGsmStat() != 1)&&(getGsmStat() != 5)) { 
-        delay(5000);
-        noGsmCounter++;     
-        if (noGsmCounter==2)
-          {
-            noGsmCounter=0;
-            powerDown();
-            powerUp();
-            Serial.begin(4800);
-            turnOnGns();
-            delay(20000);
-            if ((getGsmStat() == 1)||(getGsmStat() == 5)) {gpsCheck(120000);}            
-          }
+      if (!gsmCheck(10000)) { 
+        powerDown();
+        powerUp();
+        Serial.begin(4800);
+        turnOnGns();
+        delay(20000);
+        if ((getGsmStat() == 1)||(getGsmStat() == 5)) {gpsCheck(120000);}            
+
       }else{
         uint16_t waitInterval=0;
         if (started==true){waitInterval=120000;}else{waitInterval=4000;}
@@ -226,9 +220,20 @@ bool gpsCheck(uint16_t waitInterval){
   while((!gps())&&((currentMillis - previousMillis) <= waitInterval)){
     currentMillis=millis();
     if ((currentMillis - previousMillis) > waitInterval)
-    {return true;}else{return false;}
+    {return false;}else{return true;}
   }
 }
+
+bool gsmCheck(uint16_t waitInterval){
+  currentMillis = millis();
+  previousMillis = millis();
+  while(((getGsmStat() != 1)&&(getGsmStat() != 5))&&((currentMillis - previousMillis) <= waitInterval)){
+    currentMillis=millis();
+    if ((currentMillis - previousMillis) > waitInterval)
+    {return false;}else{return true;}
+  }
+}
+
 void httpPostMaster(){
   if ((getCounter() < limitToSend)) {
     if(httpPostFromTo(0,getCounter())){
