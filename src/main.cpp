@@ -157,8 +157,8 @@
 
 void loop() {
   if(getCounter()>380){clearMemory(30999);clearMemoryDebug(32003);resetSS();}
-  enablePinChangeInterrupt(digitalPinToPinChangeInterrupt(intPin));
   if (digitalRead(8)) {
+      disablePinChangeInterrupt(digitalPinToPinChangeInterrupt(intPin));
       powerCheck();
       if ((getGsmStat() != 1)&&(getGsmStat() != 5)) { 
         delay(5000);
@@ -185,6 +185,7 @@ void loop() {
         }else{resetSS();delay(10000);}
       }
   }else {//if(!digitalRead(8))
+    enablePinChangeInterrupt(digitalPinToPinChangeInterrupt(intPin));
     if (gpsCheck(120000))
       {
         httpPing();
@@ -477,7 +478,7 @@ void getWriteFromFramFromZero(uint16_t p1, uint16_t p2) {
 void IntRoutine() {
    wakeUpCounter = iterations;
   Serial.flush();
-  detachPinChangeInterrupt(digitalPinToPinChangeInterrupt(intPin));
+  disablePinChangeInterrupt(digitalPinToPinChangeInterrupt(intPin));
 }
 void decrementCounter(uint16_t value) {
   int countVal = getCounter();
@@ -1038,7 +1039,7 @@ void powerCheck(){
   if (digitalRead(A3)==LOW)
     {
       digitalWrite(6, HIGH);
-      digitalWrite(8, HIGH);
+      digitalWrite(3, HIGH);
       powerDown();
       powerUp();
       Serial.begin(4800);
