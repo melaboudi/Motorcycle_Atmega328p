@@ -170,7 +170,7 @@ void loop() {
             httpPing();gps();
             if(ping){t3=t2;}else{httpPostMaster();}
           }
-        }else{resetSS();delay(10000);}     
+        }else{resetSS();}     
       }else{
         resetSS();
         if(gsmCheck(20000)){gprsOn();gpsCheck(120000);}
