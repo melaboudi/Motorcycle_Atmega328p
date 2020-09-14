@@ -156,9 +156,9 @@
   }
 
 void loop() {
+  disablePinChangeInterrupt(digitalPinToPinChangeInterrupt(intPin));
   if(getCounter()>380){clearMemory(30999);clearMemoryDebug(32003);resetSS();}
   if (digitalRead(8)) {
-      disablePinChangeInterrupt(digitalPinToPinChangeInterrupt(intPin));
       powerCheck();
       if ((getGsmStat() != 1)&&(getGsmStat() != 5)) { 
         delay(5000);
@@ -185,24 +185,24 @@ void loop() {
         }else{resetSS();delay(10000);}
       }
   }else {//if(!digitalRead(8))
-    enablePinChangeInterrupt(digitalPinToPinChangeInterrupt(intPin));
     if (gpsCheck(120000))
       {
         httpPing();
         if(!ping){httpPostMaster();}
         httpPostCustom('0');
         powerDown();
-        attachPinChangeInterrupt(digitalPinToPinChangeInterrupt(intPin), IntRoutine, RISING);
         Serial.flush();
         while (wakeUpCounter <= iterations) {
           Wire.beginTransmission(8);
           Wire.write('f');
           Wire.endTransmission();
+          enablePinChangeInterrupt(digitalPinToPinChangeInterrupt(intPin));
           LowPower.idle(SLEEP_8S, ADC_OFF, TIMER2_OFF, TIMER1_OFF, TIMER0_OFF, SPI_OFF, USART0_ON, TWI_OFF);
           wakeUpCounter++;
         }
-        if (wakeUpCounter != (iterations+1)) {                  //Vehicule ignition wakeup
-          Wire.beginTransmission(8);
+        if (wakeUpCounter==iterations+2)
+        {
+          Wire.beginTransmission(8);                 //Vehicule ignition wakeup
           Wire.write('n');
           Wire.endTransmission();
           powerUp();
@@ -210,13 +210,13 @@ void loop() {
           turnOnGns(); gprsOn(); 
           wakeUpCounter = 0;
           httpPostCustom('1');
-        }else {                                                 //WD timer wakeups
-          powerUp();
-          powerCheck();
-          turnOnGns();gprsOn();
-          wakeUpCounter = 0;
-          httpPostCustom('1');
-        }
+          }else{                                    //WDT wakeups
+            powerUp();
+            powerCheck();
+            turnOnGns();gprsOn();
+            wakeUpCounter = 0;
+            httpPostCustom('1');
+          }
       }else{resetSS();delay(60000);}
   }
 }
@@ -476,7 +476,7 @@ void getWriteFromFramFromZero(uint16_t p1, uint16_t p2) {
   }
 }
 void IntRoutine() {
-   wakeUpCounter = iterations;
+   wakeUpCounter = iterations+1;
   Serial.flush();
   disablePinChangeInterrupt(digitalPinToPinChangeInterrupt(intPin));
 }
