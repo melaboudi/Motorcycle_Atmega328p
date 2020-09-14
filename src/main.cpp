@@ -159,45 +159,32 @@
 void loop() {
   disablePinChangeInterrupt(digitalPinToPinChangeInterrupt(intPin));
   if(getCounter()>380){clearMemory(30999);clearMemoryDebug(32003);powerCycle();}
-  if (digitalRead(8)) {
-    if(powerCheck())
-    {
-      if (gsmCheck(20000)) { 
-        uint16_t waitInterval=0;if (started==true){waitInterval=120000;}else{waitInterval=4000;}
-        if (gpsCheck(waitInterval))
-        {
-          if((t2 - t3) >= (te-8)){
-            httpPing();gps();
-            if(ping){t3=t2;}else{httpPostMaster();}
-          }
-        }else{resetSS();}     
-      }else{
-        resetSS();
-        if(gsmCheck(20000)){gprsOn();gpsCheck(120000);}
-      }
+  if (digitalRead(8)){
+    if(powerCheck()){
+      if (gsmCheck(20000)) {
+        if (gpsCheck(120000)){
+          if((t2 - t3) >= (te-8)){httpPing();gps();if(ping){t3=t2;}else{httpPostMaster();}}
+        }else{resetSS();}
+      }else{resetSS();}
     }
   }else {//if(!digitalRead(8))
-    if(powerCheck())
-    {
-      if (gsmCheck(2000))
-      {
-        if (gpsCheck(120000))
-        {
+    if(powerCheck()){
+      if (gsmCheck(20000)){
+        if (gpsCheck(180000)){
           httpPing();
           if(!ping){httpPostMaster();}
           httpPostCustom('0');
           powerDown();
+          Wire.beginTransmission(8);
+          Wire.write('f');
+          Wire.endTransmission();
           Serial.flush();
           while (wakeUpCounter <= iterations) {
-            Wire.beginTransmission(8);
-            Wire.write('f');
-            Wire.endTransmission();
             enablePinChangeInterrupt(digitalPinToPinChangeInterrupt(intPin));
             LowPower.idle(SLEEP_8S, ADC_OFF, TIMER2_OFF, TIMER1_OFF, TIMER0_OFF, SPI_OFF, USART0_ON, TWI_OFF);
             wakeUpCounter++;
           }
-          if (wakeUpCounter==iterations+2)
-          {
+          if (wakeUpCounter==iterations+2){
             Wire.beginTransmission(8);                 //Vehicule ignition wakeup
             Wire.write('n');
             Wire.endTransmission();
@@ -227,8 +214,8 @@ void loop() {
               gpsFailCounter=0;
               httpPostCustom('1');
             }
-        }else{if (!gpsCheck(60000)){resetSS();}}
-      }else{noGsmCounter++;if (noGsmCounter==10){resetSS();}}
+        }else{resetSS();}
+      }else{resetSS();}
     }
   }
 }
