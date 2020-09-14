@@ -2,7 +2,6 @@
   #include "arduino.h"
   #include "LowPower.h"
   #include "PinChangeInterrupt.h"
-  #include <avr/wdt.h>
   //#define intPin A4
   #define intPin 8
   volatile bool flag=false;
@@ -102,10 +101,11 @@
   void flushSim();
   void writeDataFram(char* dataFram);
   void writeDataFramDebug(char* dataFram, long p1);
-  bool powerUp();
-  bool powerDown();
+  void powerUp();
+  void powerDown();
   void blinkLED(int k);
   void blinkLEDFast(int k);
+  void simHardReset();
   void clearMemory(int size);
   void clearMemoryDiff(int size, int size1);
   void clearMemoryDebug(unsigned long size);
@@ -122,10 +122,11 @@
   bool insertGpsData();
   void resetSS();
   void cfunReset();
+  void hardResetSS();
   int getBatchCounter(uint16_t i);
   bool gps();
+  void powerCheck();
   bool gpsCheck(uint16_t waitInterval);
-  bool gsmCheck(uint16_t waitInterval);
   int limitToSend =7;
   unsigned long te = 28; //le temps entre les envoies
   String previousUnixTime="0";
@@ -135,91 +136,98 @@
     fram.begin();
     pinMode(3, OUTPUT);//VIO
     pinMode(A3, INPUT);//sim Power Status
-    pinMode(A0, OUTPUT);//LED
     pinMode(0, INPUT);//SS RX
     pinMode(1, OUTPUT);//SS TX
     pinMode(6, OUTPUT);//sim Reset
-    powerDown();
+    digitalWrite(6, HIGH);
+    digitalWrite(3, HIGH);
     powerUp();
-
+    powerCheck();
+    Serial.begin(4800);
+    turnOnGns();
+    getImei();
+    while ((getGsmStat() != 1&&(getGsmStat() != 5))) {
+      delay(500);
+    }
+    while (!gps());
+    gprsOn();
+    attachPinChangeInterrupt(digitalPinToPinChangeInterrupt(intPin), IntRoutine, RISING);
+    // writeDataFramDebug("x",32080);
   }
 
 void loop() {
   if(getCounter()>380){clearMemory(30999);clearMemoryDebug(32003);resetSS();}
-  if (powerUp()){
-    if (digitalRead(8)) {
-      disablePinChangeInterrupt(digitalPinToPinChangeInterrupt(intPin));
-      detachPinChangeInterrupt(digitalPinToPinChangeInterrupt(intPin));
-      if (!gsmCheck(5000)) { 
+  enablePinChangeInterrupt(digitalPinToPinChangeInterrupt(intPin));
+  if (digitalRead(8)) {
+      powerCheck();
+      if ((getGsmStat() != 1)&&(getGsmStat() != 5)) { 
+        delay(5000);
         noGsmCounter++;     
         if (noGsmCounter==2)
           {
             noGsmCounter=0;
             powerDown();
             powerUp();
+            Serial.begin(4800);
+            turnOnGns();
+            delay(20000);
+            if ((getGsmStat() == 1)||(getGsmStat() == 5)) {gpsCheck(120000);}            
           }
       }else{
         uint16_t waitInterval=0;
-        if (started==true){waitInterval=160000;}else{waitInterval=4000;}
+        if (started==true){waitInterval=120000;}else{waitInterval=4000;}
         if (gpsCheck(waitInterval))
         {
           if((t2 - t3) >= (te-8)){
             httpPing();gps();
             if(ping){t3=t2;}else{httpPostMaster();}
           }
-        }else{resetSS();gpsCheck(10000);}
+        }else{resetSS();delay(10000);}
       }
-    }else {//if(!digitalRead(8))
-      if (powerUp()){
-        if (gpsCheck(160000))
-          {
-            httpPing();
-            if(!ping){httpPostMaster();}
-            httpPostCustom('0');
-            powerDown();
-            Serial.flush();
-            while (wakeUpCounter <= iterations) {
-              Wire.beginTransmission(8);
-              Wire.write('f');
-              Wire.endTransmission();
-              attachPinChangeInterrupt(digitalPinToPinChangeInterrupt(intPin), IntRoutine, RISING);
-              enablePinChangeInterrupt(digitalPinToPinChangeInterrupt(intPin));
-              LowPower.idle(SLEEP_8S, ADC_OFF, TIMER2_OFF, TIMER1_OFF, TIMER0_OFF, SPI_OFF, USART0_ON, TWI_OFF);
-              wakeUpCounter++;
-            }
-            disablePinChangeInterrupt(digitalPinToPinChangeInterrupt(intPin));
-            detachPinChangeInterrupt(digitalPinToPinChangeInterrupt(intPin));
-            if (wakeUpCounter != (iterations+1)) {                  //Vehicule ignition wakeup
-              Wire.beginTransmission(8);
-              Wire.write('n');
-              Wire.endTransmission();
-              powerUp();
-              wakeUpCounter = 0;
-              httpPostCustom('1');
-            }else {                                                 //WD timer wakeups
-              powerUp();
-              wakeUpCounter = 0;
-              httpPostCustom('1');
-            }
-          }else{resetSS();}
-      }else{blinkLEDFast(1000);}
-    }
-  }else{blinkLEDFast(1000);}
+  }else {//if(!digitalRead(8))
+    if (gpsCheck(120000))
+      {
+        httpPing();
+        if(!ping){httpPostMaster();}
+        httpPostCustom('0');
+        powerDown();
+        attachPinChangeInterrupt(digitalPinToPinChangeInterrupt(intPin), IntRoutine, RISING);
+        Serial.flush();
+        while (wakeUpCounter <= iterations) {
+          Wire.beginTransmission(8);
+          Wire.write('f');
+          Wire.endTransmission();
+          LowPower.idle(SLEEP_8S, ADC_OFF, TIMER2_OFF, TIMER1_OFF, TIMER0_OFF, SPI_OFF, USART0_ON, TWI_OFF);
+          wakeUpCounter++;
+        }
+        if (wakeUpCounter != (iterations+1)) {                  //Vehicule ignition wakeup
+          Wire.beginTransmission(8);
+          Wire.write('n');
+          Wire.endTransmission();
+          powerUp();
+          powerCheck();
+          turnOnGns(); gprsOn(); 
+          wakeUpCounter = 0;
+          httpPostCustom('1');
+        }else {                                                 //WD timer wakeups
+          powerUp();
+          powerCheck();
+          turnOnGns();gprsOn();
+          wakeUpCounter = 0;
+          httpPostCustom('1');
+        }
+      }else{resetSS();delay(60000);}
+  }
 }
 bool gpsCheck(uint16_t waitInterval){
   currentMillis = millis();
   previousMillis = millis();
-  while((!gps())&&((currentMillis - previousMillis) <= waitInterval)){currentMillis=millis();delay(2000);}
-  if ((currentMillis - previousMillis) > waitInterval){return false;}else{return true;} 
+  while((!gps())&&((currentMillis - previousMillis) <= waitInterval)){
+    currentMillis=millis();
+    if ((currentMillis - previousMillis) > waitInterval)
+    {return true;}else{return false;}
+  }
 }
-
-bool gsmCheck(uint16_t waitInterval){
-  currentMillis = millis();
-  previousMillis = millis();
-  while(((getGsmStat() != 1&&(getGsmStat() != 5)))&&((currentMillis - previousMillis) <= waitInterval)){currentMillis=millis();delay(1000);}
-  if ((currentMillis - previousMillis) > waitInterval){return false;}else{return true;}
-}
-
 void httpPostMaster(){
   if ((getCounter() < limitToSend)) {
     if(httpPostFromTo(0,getCounter())){
@@ -467,9 +475,8 @@ void getWriteFromFramFromZero(uint16_t p1, uint16_t p2) {
   }
 }
 void IntRoutine() {
-  wakeUpCounter = iterations;
+   wakeUpCounter = iterations;
   Serial.flush();
-  disablePinChangeInterrupt(digitalPinToPinChangeInterrupt(intPin));
   detachPinChangeInterrupt(digitalPinToPinChangeInterrupt(intPin));
 }
 void decrementCounter(uint16_t value) {
@@ -754,6 +761,27 @@ void writeDataFramDebug(char* dataFram, long p1) {
   }
 }
 
+void powerUp() {
+  while (analogRead(A3) < 200) {
+    pinMode(5, OUTPUT);//PWR KEY
+    digitalWrite(5, LOW);
+    delay(2000);
+    pinMode(5, INPUT_PULLUP);
+    delay(100);
+  }
+  noGsmCounter=0;
+
+}
+
+void powerDown() {
+  while (analogRead(A3) > 200) {
+    pinMode(5, OUTPUT);//PWR KEY
+    digitalWrite(5, LOW);
+    delay(2000);
+    pinMode(5, INPUT_PULLUP);
+    delay(100);
+  }
+}
 void blinkLED(int k) {
   for (int i = 0; i < k; i++) {
     digitalWrite(A0, HIGH);   // turn the LED on (HIGH is the voltage level)
@@ -770,7 +798,16 @@ void blinkLEDFast(int k) {
     delay(20);
   }
 }
-
+void simHardReset() {
+  digitalWrite(6, HIGH);
+  delay(10);
+  digitalWrite(6, LOW);
+  delay(200);
+  digitalWrite(6, HIGH);
+  powerUp();
+  powerCheck();
+  Serial.begin(4800);
+}
 void clearMemory(int size) {
   for (uint16_t a = 0; a < size; a++) {
     fram.write8(a, 0);
@@ -879,10 +916,11 @@ void incrementValue(uint16_t position, uint8_t largeur) {
   writeDataFramDebug(complete(String(countVal), largeur).c_str(), position);
 }
 void resetSS() {
-  powerUp();////////////////////////////////////////////////////////////////////////
   cfunReset();
   turnOnGns();
-  gsmCheck(20000);
+  while ((getGsmStat() != 1)&&(getGsmStat() != 5))  {
+    delay(500);
+  }
   gprsOn();
   restarted=true;
   gnsFailCounter = 0;
@@ -892,7 +930,26 @@ void resetSS() {
   ReStartCounter=0;
   noGsmCounter=0;
 }
-
+void hardResetSS() {
+  // pinMode(5, OUTPUT);//PWR KEY
+  // digitalWrite(5, LOW);
+  // delay(2000);
+  // pinMode(5, INPUT_PULLUP);
+  // delay(100);
+  // powerUp();
+  // Serial.begin(4800);
+  sendAtFram(6000, 31730, 11, "OK", "ERROR", 1);  //CFUN=1,1
+  Serial.begin(4800);
+  turnOnGns();
+  while ((getGsmStat() != 1)&&(getGsmStat() != 5))  {delay(500);}
+  gprsOn();
+  restarted=true;
+  gnsFailCounter = 0;
+  gpsFailCounter = 0;
+  httpActionFail = 0;
+  FirstStartCounter = 0;
+  ReStartCounter=0;
+}
 void cfunReset(){
   sendAtFram(6000, 31741, 9, "OK", "ERROR", 1);  //CFUN=0
   sendAtFram(6000, 31140, 9, "OK", "ERROR", 1);  //CFUN=1
@@ -976,34 +1033,19 @@ bool insertGpsData() {
     return true;
   } else return false;
 }
-bool powerUp() {
-  digitalWrite(6, HIGH);
-  digitalWrite(3, HIGH);
-  if (analogRead(A3) < 200) {
-    pinMode(5, OUTPUT);//PWR KEY
-    digitalWrite(5, LOW);
-    delay(2000);
-    pinMode(5, INPUT_PULLUP);
-    delay(1000);
-    if (analogRead(A3)>200){noGsmCounter=0;
+
+void powerCheck(){
+  if (digitalRead(A3)==LOW)
+    {
+      digitalWrite(6, HIGH);
+      digitalWrite(8, HIGH);
+      powerDown();
+      powerUp();
       Serial.begin(4800);
       turnOnGns();
-      getImei();
-      if (gsmCheck(20000)){
-        if (gpsCheck(160000)){gprsOn();return true;}else
-        {return false;}
-        }else{return false;}
-    }else{return false;}
-  }else{return true;}
-}
-
-bool powerDown() {
-  if (analogRead(A3) > 200) {
-    pinMode(5, OUTPUT);//PWR KEY
-    digitalWrite(5, LOW);
-    delay(2000);
-    pinMode(5, INPUT_PULLUP);
-    delay(100);
-  if (analogRead(A3)<200){return true;}else{return false;}  
-  }else{return true;}
+      while ((getGsmStat() != 1)&&(getGsmStat() != 5) ){
+        delay(500);
+      }
+      gpsCheck(120000);
+    }
 }
