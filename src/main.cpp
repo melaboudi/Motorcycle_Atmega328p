@@ -209,14 +209,14 @@ void loop() {
 bool gpsCheck(uint16_t waitInterval){
   currentMillis = millis();
   previousMillis = millis();
-  while((!gps())&&((currentMillis - previousMillis) <= waitInterval)){currentMillis=millis();}
+  while((!gps())&&((currentMillis - previousMillis) <= waitInterval)){currentMillis=millis();delay(2000);}
   if ((currentMillis - previousMillis) > waitInterval){return false;}else{return true;} 
 }
 
 bool gsmCheck(uint16_t waitInterval){
   currentMillis = millis();
   previousMillis = millis();
-  while(((getGsmStat() != 1&&(getGsmStat() != 5)))&&((currentMillis - previousMillis) <= waitInterval)){currentMillis=millis();}
+  while(((getGsmStat() != 1&&(getGsmStat() != 5)))&&((currentMillis - previousMillis) <= waitInterval)){currentMillis=millis();delay(1000);}
   if ((currentMillis - previousMillis) > waitInterval){return false;}else{return true;}
 }
 
@@ -987,8 +987,8 @@ bool powerUp() {
     delay(1000);
     if (analogRead(A3)>200){noGsmCounter=0;
       Serial.begin(4800);
-      getImei();
       turnOnGns();
+      getImei();
       if (gsmCheck(20000)){
         if (gpsCheck(160000)){gprsOn();return true;}else
         {return false;}
