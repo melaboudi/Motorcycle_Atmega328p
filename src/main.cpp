@@ -162,9 +162,8 @@ void loop() {
   if (digitalRead(8)) {
     if(powerCheck())
     {
-      if (gsmCheck(2000)) { 
-        uint16_t waitInterval=0;
-        if (started==true){waitInterval=120000;}else{waitInterval=4000;}
+      if (gsmCheck(20000)) { 
+        uint16_t waitInterval=0;if (started==true){waitInterval=120000;}else{waitInterval=4000;}
         if (gpsCheck(waitInterval))
         {
           if((t2 - t3) >= (te-8)){
@@ -173,17 +172,8 @@ void loop() {
           }
         }else{resetSS();delay(10000);}     
       }else{
-        noGsmCounter++;
-        if (noGsmCounter==10)
-        {
-          powerCycle();
-          if(gsmCheck(20000)){
-            noGsmCounter = 0;
-            gpsFailCounter=0;
-            gprsOn();
-            gpsCheck(120000);
-          }
-        }
+        resetSS();
+        if(gsmCheck(20000)){gprsOn();gpsCheck(120000);}
       }
     }
   }else {//if(!digitalRead(8))
@@ -262,9 +252,9 @@ bool gpsCheck(uint16_t waitInterval){
   previousMillis = millis();
   while((!gps())&&((currentMillis - previousMillis) <= waitInterval)){
     currentMillis=millis();delay(1000);
+  }
     if ((currentMillis - previousMillis) > waitInterval)
     {return false;}else{return true;}
-  }
 }
 
 bool gsmCheck(uint16_t waitInterval){
@@ -273,9 +263,9 @@ bool gsmCheck(uint16_t waitInterval){
   uint8_t gsmStatInt=getGsmStat();
   while((gsmStatInt != 1)&&(gsmStatInt != 5)&&((currentMillis - previousMillis) <= waitInterval)){
     gsmStatInt=getGsmStat();currentMillis=millis();delay(1000);
+  }
     if ((currentMillis - previousMillis) > waitInterval)
     {return false;}else{return true;}
-  }
 }
 
 void httpPostMaster(){
