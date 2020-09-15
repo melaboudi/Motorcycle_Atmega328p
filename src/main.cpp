@@ -161,16 +161,16 @@ void loop() {
   if(getCounter()>380){clearMemory(30999);clearMemoryDebug(32003);powerCycle();}
   if (digitalRead(8)){
     if(powerCheck()){
-      if (gsmCheck(20000)) {
-        if (gpsCheck(120000)){
+      if (gsmCheck(20000)) {noGsmCounter=0;
+        if (gpsCheck(120000)){gpsFailCounter=0;
           if((t2 - t3) >= (te-8)){httpPing();gps();if(ping){t3=t2;}else{httpPostMaster();}}
-        }else{resetSS();}
-      }else{resetSS();}
+        }else{gpsFailCounter++;resetSS();if (gpsFailCounter==3){powerCycle();}}
+      }else{noGsmCounter++;resetSS();if (noGsmCounter==3){powerCycle();}}
     }
   }else {//if(!digitalRead(8))
     if(powerCheck()){
-      if (gsmCheck(20000)){
-        if (gpsCheck(180000)){
+      if (gsmCheck(20000)){noGsmCounter=0;
+        if (gpsCheck(180000)){gpsFailCounter=0;
           httpPing();
           if(!ping){httpPostMaster();}
           httpPostCustom('0');
