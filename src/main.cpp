@@ -129,8 +129,26 @@
   bool gpsCheck(uint16_t waitInterval);
   bool gsmCheck(uint16_t waitInterval);
   void powerCycle();
-  int limitToSend =7;
-  unsigned long te = 28; //le temps entre les envoies
+  // int limitToSend =7;
+  // unsigned long te = 28; //le temps entre les envoies
+  // //Resultat: 04/06/06/15
+
+  // int limitToSend =12;
+  // unsigned long te = 56; //le temps entre les envoies
+  // //4/4/3/4/3/5/4/3/5/6/7/16
+
+  // int limitToSend =14;
+  // unsigned long te = 56; //le temps entre les envoies
+  // //4/4/4/4/4/4/3/4/4/7/16.5
+
+  int limitToSend =14;
+  unsigned long te = 64; //le temps entre les envoies
+  //4/4/4/4/4/3/4/4/4/4/4/6/16.5
+
+  // int limitToSend =16;
+  // unsigned long te = 72; //le temps entre les envoies
+  // //4/4/4/4/3/4/4/4/4/4/4/3/7/17.5
+
   String previousUnixTime="0";
   uint16_t iterations=1760; //sleeping time = iterations X 8 Seconds
   void setup() {
@@ -164,8 +182,8 @@ void loop() {
       if (gsmCheck(20000)) {noGsmCounter=0;
         if (gpsCheck(120000)){gpsFailCounter=0;
           if((t2 - t3) >= (te-8)){httpPing();gps();if(ping){t3=t2;}else{httpPostMaster();}}
-        }else{gpsFailCounter++;resetSS();if (gpsFailCounter==3){powerCycle();}}
-      }else{noGsmCounter++;resetSS();if (noGsmCounter==3){powerCycle();}}
+        }else{gpsFailCounter++;resetSS();if (gpsFailCounter==2){powerCycle();}}
+      }else{noGsmCounter++;resetSS();if (noGsmCounter==2){powerCycle();}}
     }
   }else {//if(!digitalRead(8))
     if(powerCheck()){
@@ -214,8 +232,8 @@ void loop() {
               gpsFailCounter=0;
               httpPostCustom('1');
             }
-        }else{resetSS();}
-      }else{resetSS();}
+        }else{gpsFailCounter++;resetSS();if (gpsFailCounter==2){powerCycle();}}
+      }else{noGsmCounter++;resetSS();if (noGsmCounter==2){powerCycle();}}
     }
   }
 }
@@ -949,11 +967,9 @@ void resetSS() {
   gprsOn();
   restarted=true;
   gnsFailCounter = 0;
-  gpsFailCounter = 0;
   httpActionFail = 0;
   FirstStartCounter = 0;
   ReStartCounter=0;
-  noGsmCounter=0;
 }
 void hardResetSS() {
   // pinMode(5, OUTPUT);//PWR KEY
