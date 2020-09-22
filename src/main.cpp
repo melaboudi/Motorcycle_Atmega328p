@@ -55,7 +55,6 @@
   String batLev=" ";
   volatile uint16_t wakeUpCounter = 0;
   char newC[3]={0};
-  unsigned long startPinging;
   unsigned long pingingInterval=40000;
   //6  45----7points 9secondsSend  ok
   //6  41----7points 10secondsSend
@@ -67,7 +66,6 @@
   //6  25----4Points 8secondsSend
 
   int badCharCounter=0;
-  uint16_t httpTimeout=8000;
   uint64_t lastSend =0;
   uint16_t reps=0;
   char* one="1";
@@ -141,6 +139,7 @@
   // unsigned long te = 56; //le temps entre les envoies
   // //4/4/4/4/4/4/3/4/4/7/16.5
 
+  uint16_t httpTimeout=12000;
   int limitToSend =14;
   unsigned long te = 64; //le temps entre les envoies
   //4/4/4/4/4/3/4/4/4/4/4/6/16.5
@@ -176,12 +175,12 @@
 
 void loop() {
   disablePinChangeInterrupt(digitalPinToPinChangeInterrupt(intPin));
-  if(getCounter()>380){clearMemory(30999);clearMemoryDebug(32003);powerCycle();}
+  if(getCounter()>380){clearMemory(30999);for(long i=32080;i<32180;i++){writeDataFramDebug("0",i);}clearMemoryDebug(32003);powerCycle();}
   if (digitalRead(8)){
     if(powerCheck()){
       if (gsmCheck(20000)) {noGsmCounter=0;
         if (gpsCheck(120000)){gpsFailCounter=0;
-          if((t2 - t3) >= (te-8)){httpPing();gps();if(ping){t3=t2;}else{httpPostMaster();}}
+          if((t2 - t3) >= (te-8)){t3=t2;httpPing();gps();if(!ping){httpPostMaster();}}
         }else{gpsFailCounter++;resetSS();if (gpsFailCounter==2){powerCycle();}}
       }else{noGsmCounter++;resetSS();if (noGsmCounter==2){powerCycle();}}
     }
@@ -250,6 +249,7 @@ void powerCycle(){
   delay(100);
   noGsmCounter = 0;
   gpsFailCounter=0;
+  httpActionFail=0;
 }
 
 bool gpsCheck(uint16_t waitInterval){
@@ -277,15 +277,13 @@ void httpPostMaster(){
   if ((getCounter() < limitToSend)) {
     if(httpPostFromTo(0,getCounter())){
       clearMemoryDiff(0,getCounter()*66);
-      clearMemoryDebug(32003);
-      t3 = t2;
+      clearMemoryDebug(32003);  for(long i=32080;i<32180;i++){writeDataFramDebug("0",i);}
     }
   }else{
     uint16_t repetitions=getCounter()/limitToSend;
     for (uint16_t i = 1; i<=repetitions; i++){
       if(getBatchCounter(i)==1){
-        if(httpPostFromTo((i-1)*limitToSend,((i)*limitToSend))){writeDataFramDebug("0",(32080+i));
-        }
+        if(httpPostFromTo((i-1)*limitToSend,((i)*limitToSend))){writeDataFramDebug("0",(32080+i));}
         gps();
         repetitions=getCounter()/limitToSend;
       }
@@ -297,12 +295,12 @@ void httpPostMaster(){
         uint16_t reps= getCounter()/limitToSend;         
           if(httpPostFromTo(reps*limitToSend,getCounter())){
             clearMemoryDiff(0,getCounter()*66); 
-            clearMemoryDebug(32003);
-            t3 = t2;} 
+            clearMemoryDebug(32003); for(long i=32080;i<32180;i++){writeDataFramDebug("0",i);}
+          } 
       }else{
         clearMemoryDiff(0,getCounter()*66); 
-        clearMemoryDebug(32003);
-        t3 = t2;}
+        clearMemoryDebug(32003); for(long i=32080;i<32180;i++){writeDataFramDebug("0",i);}
+      }
     }
   }
 }
@@ -370,13 +368,13 @@ bool httpPostFromTo(uint16_t p1, uint16_t p2) {
     } else OkToSend = false;
     if (OkToSend) {
       if (fireHttpAction(httpTimeout, "AT+HTTPACTION=", ",200,", "ERROR")) {
-        return true;
+       return true;
       } else {
-        return false;
+      if (httpActionFail==4){powerCycle();}
+      return false;
       }
-    }
+    }else{httpActionFail++;return false;}
   }else{return false;}
-  
 }
 void httpPing() {
   bool OkToSend = true;
@@ -816,6 +814,7 @@ void powerUp() {
   }
   noGsmCounter=0;
   gpsFailCounter=0;
+  httpActionFail=0;
 }
 
 void powerDown() {
@@ -1036,9 +1035,11 @@ bool fireHttpAction(long timeout, char* Commande, char* Rep, char* Error) {
   if(Serial.findUntil(Rep, Error)){
     // sendAtFram(2000, 31241, 11, "OK", "ERROR", 5); // httpterm
     ping =false;
+    httpActionFail=0;
     return true;
   } else{
-    ping = true;startPinging=millis();
+    ping = true;
+    httpActionFail++;
     return false;
     }
   Serial.setTimeout(1000);
