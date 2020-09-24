@@ -83,7 +83,6 @@
   void httpPing();
   void httpPost1P();
   bool httpPostFromTo(uint16_t p1, uint16_t p2);
-  void getWriteFromFramFromZero(uint16_t p1, uint16_t p2);
   void decrementCounter(uint16_t value);
   bool turnOnGns();
   bool getGnsStat();
@@ -158,6 +157,8 @@
     pinMode(0, INPUT);//SS RX
     pinMode(1, OUTPUT);//SS TX
     pinMode(6, OUTPUT);//sim Reset
+    digitalWrite(6, HIGH);
+    digitalWrite(3, HIGH);
     powerCycle();
     getImei();
     gsmCheck(20000);
@@ -172,7 +173,6 @@
     // writeDataFramDebug("x",32080);
   }
 
-
 void loop() {
   disablePinChangeInterrupt(digitalPinToPinChangeInterrupt(intPin));
   if(getCounter()>380){clearMemory(30999);for(long i=32080;i<32180;i++){writeDataFramDebug("0",i);}clearMemoryDebug(32003);powerCycle();}
@@ -180,16 +180,15 @@ void loop() {
     if(powerCheck()){
       if (gsmCheck(20000)) {noGsmCounter=0;
         if (gpsCheck(120000)){gpsFailCounter=0;
-          if((t2 - t3) >= (te-8)){t3=t2;httpPing();gps();if(!ping){httpPostMaster();}}
-        }else{gpsFailCounter++;resetSS();if (gpsFailCounter==2){powerCycle();}}
+          if((t2 - t3) >= (te-8)){t3=t2;httpPing();gps();httpPostMaster();}
+        }else{httpPostCustom('9');gpsFailCounter++;resetSS();if (gpsFailCounter==2){powerCycle();}}
       }else{noGsmCounter++;resetSS();if (noGsmCounter==2){powerCycle();}}
     }
   }else {//if(!digitalRead(8))
     if(powerCheck()){
       if (gsmCheck(20000)){noGsmCounter=0;
         if (gpsCheck(180000)){gpsFailCounter=0;
-          httpPing();
-          if(!ping){httpPostMaster();}
+          httpPing();httpPostMaster();
           httpPostCustom('0');
           powerDown();
           Wire.beginTransmission(8);
@@ -199,6 +198,8 @@ void loop() {
           while (wakeUpCounter <= iterations) {
             enablePinChangeInterrupt(digitalPinToPinChangeInterrupt(intPin));
             LowPower.idle(SLEEP_8S, ADC_OFF, TIMER2_OFF, TIMER1_OFF, TIMER0_OFF, SPI_OFF, USART0_ON, TWI_OFF);
+            delay(100);
+            if (digitalRead(8)){wakeUpCounter= iterations+1;}
             wakeUpCounter++;
           }
           if (wakeUpCounter==iterations+2){
@@ -231,15 +232,13 @@ void loop() {
               gpsFailCounter=0;
               httpPostCustom('1');
             }
-        }else{gpsFailCounter++;resetSS();if (gpsFailCounter==2){powerCycle();}}
+        }else{httpPostCustom('8');gpsFailCounter++;resetSS();if (gpsFailCounter==2){powerCycle();}}
       }else{noGsmCounter++;resetSS();if (noGsmCounter==2){powerCycle();}}
     }
   }
 }
 
 void powerCycle(){
-  digitalWrite(6, HIGH);
-  digitalWrite(3, HIGH);
   powerDown();
   powerUp();
   delay(200);
@@ -306,14 +305,12 @@ void httpPostMaster(){
 }
 bool gps(){
   if (!getGpsData()) {
-      if (!getGnsStat()) {if (gnsFailCounter == 2) {resetSS();} else {turnOnGns();delay(1000);gnsFailCounter++;}}
-        if(restarted){if (ReStartCounter == 10) {resetSS();}else {delay(2000);ReStartCounter++;}
-        }else if (started){if (FirstStartCounter == 1) {resetSS();}else{delay(60000);FirstStartCounter++;}
-        }else if((!restarted)&&(!started)){/*httpPostCustom('9');*/if (gpsFailCounter == 10) {resetSS();}else {delay(1000);gpsFailCounter++;}}
-        return false;
-    }else
-    {return true;}
-    
+    if (!getGnsStat()) {if (gnsFailCounter == 2) {resetSS();} else {turnOnGns();delay(1000);gnsFailCounter++;}}
+      if(restarted){if (ReStartCounter == 10) {resetSS();}else {delay(2000);ReStartCounter++;}
+      }else if (started){if (FirstStartCounter == 1) {resetSS();}else{delay(60000);FirstStartCounter++;}
+      }else if((!restarted)&&(!started)){/*httpPostCustom('9');*/if (gpsFailCounter == 10) {resetSS();}else {delay(1000);gpsFailCounter++;}}
+      return false;
+  }else{return true;}
 }
 bool httpPostFromTo(uint16_t p1, uint16_t p2) {
   if(!ping){
@@ -501,22 +498,7 @@ void httpPost1P() {
     }
   }
 }
-void getWriteFromFramFromZero(uint16_t p1, uint16_t p2) {
-  framWritePosition = 0;
-  for (uint16_t a = p1; a < p1 + p2; a++)
-  {
-    uint8_t test = fram.read8(a);
-    char Buffer[2] = {0};
-    if ((test==0)||(test==32))
-      {
-        sprintf(Buffer, "%c", 120); //x
-      }else
-      {
-        sprintf(Buffer, "%c", test);
-      }
-    writeDataFram(Buffer);
-  }
-}
+
 void IntRoutine() {
    wakeUpCounter = iterations+1;
   Serial.flush();
@@ -805,6 +787,8 @@ void writeDataFramDebug(char* dataFram, long p1) {
 }
 
 void powerUp() {
+  digitalWrite(6, HIGH);
+  digitalWrite(3, HIGH);
   while (analogRead(A3) < 200) {
     pinMode(5, OUTPUT);//PWR KEY
     digitalWrite(5, LOW);
@@ -1001,7 +985,13 @@ bool sendAtFram(long timeout, uint16_t pos1, uint16_t pos2, char* Rep, char* Err
   {
     uint8_t test = fram.read8(a);
     char Buffer[2] = {0};
-    sprintf(Buffer, "%c", test);
+    if ((test==0)||(test==32))
+    {
+      sprintf(Buffer, "%c", 120); //x
+    }else
+    {
+      sprintf(Buffer, "%c", test);
+    }
     Serial.print(Buffer);
   } Serial.println("");
 
@@ -1012,7 +1002,13 @@ bool sendAtFram(long timeout, uint16_t pos1, uint16_t pos2, char* Rep, char* Err
     {
       uint8_t test = fram.read8(a);
       char Buffer[2] = {0};
-      sprintf(Buffer, "%c", test);
+      if ((test==0)||(test==32))
+      {
+        sprintf(Buffer, "%c", 120); //x
+      }else
+      {
+        sprintf(Buffer, "%c", test);
+      }
       Serial.print(Buffer);
     } Serial.println("");
     compteur++;
