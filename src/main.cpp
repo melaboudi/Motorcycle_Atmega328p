@@ -73,7 +73,7 @@
   bool ping=true;
   uint8_t noGsmCounter=0;
   bool httpPostCustom(char custom);
-  void badCharChecker(String data);
+  bool badCharChecker(String data);
   void IntRoutine(void);
   // bool httpPostAll();
   void httpPostMaster();
@@ -166,7 +166,6 @@
     {
       powerCycle();
       getImei();
-      gsmCheck(20000);
     }
     gprsOn();
     attachPinChangeInterrupt(digitalPinToPinChangeInterrupt(intPin), IntRoutine, RISING);
@@ -177,66 +176,57 @@ void loop() {
   disablePinChangeInterrupt(digitalPinToPinChangeInterrupt(intPin));
   if(getCounter()>380){clearMemory(30999);for(long i=32080;i<32180;i++){writeDataFramDebug("0",i);}clearMemoryDebug(32003);powerCycle();}
   if (digitalRead(8)){
-    if(powerCheck()){
-      if (gsmCheck(20000)) {noGsmCounter=0;
-        if (gpsCheck(120000)){gpsFailCounter=0;
-          if((t2 - t3) >= (te-8)){t3=t2;httpPing();gps();httpPostMaster();}
-        }else{httpPostCustom('9');gpsFailCounter++;resetSS();if (gpsFailCounter==2){powerCycle();}}
-      }else{noGsmCounter++;resetSS();if (noGsmCounter==2){powerCycle();}}
-    }
+    powerCheck();
+    gpsCheck(180000);
+    if((t2 - t3) >= (te-8)){t3=t2;httpPing();httpPostMaster();}
   }else {//if(!digitalRead(8))
-    if(powerCheck()){
-      if (gsmCheck(20000)){noGsmCounter=0;
-        if (gpsCheck(180000)){gpsFailCounter=0;
-          httpPing();httpPostMaster();
-          httpPostCustom('0');
-          powerDown();
-          Wire.beginTransmission(8);
-          Wire.write('f');
-          Wire.endTransmission();
-          Serial.flush();
-          while (wakeUpCounter <= iterations) {
-            enablePinChangeInterrupt(digitalPinToPinChangeInterrupt(intPin));
-            LowPower.idle(SLEEP_8S, ADC_OFF, TIMER2_OFF, TIMER1_OFF, TIMER0_OFF, SPI_OFF, USART0_ON, TWI_OFF);
-            delay(100);
-            if (digitalRead(8)){wakeUpCounter= iterations+1;}
-            wakeUpCounter++;
-          }
-          if (wakeUpCounter==iterations+2){
-            Wire.beginTransmission(8);                 //Vehicule ignition wakeup
-            Wire.write('n');
-            Wire.endTransmission();
-            digitalWrite(6, HIGH);
-            digitalWrite(3, HIGH);
-            powerUp();
-            delay(200);
-            Serial.begin(4800);
-            delay(200);
-            turnOnGns();
-            gsmCheck(20000);
-            gprsOn();
-            wakeUpCounter = 0;
-            gpsFailCounter=0;
-            httpPostCustom('1');
-            }else{                                    //WDT wakeups
-              digitalWrite(6, HIGH);
-              digitalWrite(3, HIGH);
-              powerUp();
-              delay(200);
-              Serial.begin(4800);
-              delay(200);
-              turnOnGns();
-              gsmCheck(20000);
-              gprsOn();
-              wakeUpCounter = 0;
-              gpsFailCounter=0;
-              httpPostCustom('1');
-            }
-        }else{httpPostCustom('8');gpsFailCounter++;resetSS();if (gpsFailCounter==2){powerCycle();}}
-      }else{noGsmCounter++;resetSS();if (noGsmCounter==2){powerCycle();}}
+    powerCheck();
+    gpsCheck(180000);
+    httpPing();
+    httpPostMaster();
+    httpPostCustom('0');
+    powerDown();
+    Wire.beginTransmission(8);
+    Wire.write('f');
+    Wire.endTransmission();
+    Serial.flush();
+    while (wakeUpCounter <= iterations) {
+      enablePinChangeInterrupt(digitalPinToPinChangeInterrupt(intPin));
+      LowPower.idle(SLEEP_8S, ADC_OFF, TIMER2_OFF, TIMER1_OFF, TIMER0_OFF, SPI_OFF, USART0_ON, TWI_OFF);
+      delay(100);
+      if (digitalRead(8)){wakeUpCounter= iterations+1;}
+      wakeUpCounter++;
+    }
+    if (wakeUpCounter==iterations+2){
+      Wire.beginTransmission(8);                 //Vehicule ignition wakeup
+      Wire.write('n');
+      Wire.endTransmission();
+      digitalWrite(6, HIGH);
+      digitalWrite(3, HIGH);
+      powerUp();
+      delay(200);
+      Serial.begin(4800);
+      delay(200);
+      turnOnGns();
+      gprsOn();
+      wakeUpCounter = 0;
+      gpsFailCounter=0;
+      httpPostCustom('1');
+      }else{                                    //WDT wakeups
+        digitalWrite(6, HIGH);
+        digitalWrite(3, HIGH);
+        powerUp();
+        delay(200);
+        Serial.begin(4800);
+        delay(200);
+        turnOnGns();
+        gprsOn();
+        wakeUpCounter = 0;
+        gpsFailCounter=0;
+        httpPostCustom('1');
+      }
     }
   }
-}
 
 void powerCycle(){
   powerDown();
@@ -257,8 +247,8 @@ bool gpsCheck(uint16_t waitInterval){
   while((!gps())&&((currentMillis - previousMillis) <= waitInterval)){
     currentMillis=millis();delay(1000);
   }
-    if ((currentMillis - previousMillis) > waitInterval)
-    {return false;}else{return true;}
+    if ((currentMillis - previousMillis) <= waitInterval)
+    {gpsFailCounter=0;return true;}else{httpPostCustom('9');gpsFailCounter++;delay(5000);if (gpsFailCounter==2){powerCycle();}return false;}
 }
 
 bool gsmCheck(uint16_t waitInterval){
@@ -268,8 +258,9 @@ bool gsmCheck(uint16_t waitInterval){
   while((gsmStatInt != 1)&&(gsmStatInt != 5)&&((currentMillis - previousMillis) <= waitInterval)){
     gsmStatInt=getGsmStat();currentMillis=millis();delay(1000);
   }
-    if ((currentMillis - previousMillis) > waitInterval)
-    {return false;}else{return true;}
+    if ((currentMillis - previousMillis) <= waitInterval)
+      {noGsmCounter=0;return true;}
+      else{noGsmCounter++;delay(3000);if (noGsmCounter==2){powerCycle();}return false;}
 }
 
 void httpPostMaster(){
@@ -374,30 +365,32 @@ bool httpPostFromTo(uint16_t p1, uint16_t p2) {
   }else{return false;}
 }
 void httpPing() {
-  bool OkToSend = true;
-  if (sendAtFram(3000, 31254, 11, "OK", "ERROR", 5)) { //"AT+HTTPINIT"
-    if (sendAtFram(3000, 31267, 19, "OK", "ERROR", 5)) { //"AT+HTTPPARA=\"CID\",1"
-      if (sendAtFram(15000, 31609, 73, "OK", "ERROR", 5)) { //"AT+HTTPPARA=\"URL\",\"http://casa-interface.casabaia.ma/commandes.php\""
-        Serial.setTimeout(10000);
-        flushSim();
-        Serial.print("AT+HTTPDATA=");
-        delay(100);
-        uint16_t Size = 11;
-        Serial.print(Size);
-        Serial.print(",");
-        uint32_t maxTime = 30000;
-        Serial.println(maxTime);
-        Serial.findUntil("DOWNLOAD", "ERROR");
-        Serial.print("[{\"S\":\"");
-        // Serial.print(imei.c_str());
-        Serial.print("1\"}]");
-        Serial.findUntil("OK", "OK");
+  if(gsmCheck(25000)){
+    bool OkToSend = true;
+    if (sendAtFram(3000, 31254, 11, "OK", "ERROR", 5)) { //"AT+HTTPINIT"
+      if (sendAtFram(3000, 31267, 19, "OK", "ERROR", 5)) { //"AT+HTTPPARA=\"CID\",1"
+        if (sendAtFram(15000, 31609, 73, "OK", "ERROR", 5)) { //"AT+HTTPPARA=\"URL\",\"http://casa-interface.casabaia.ma/commandes.php\""
+          Serial.setTimeout(10000);
+          flushSim();
+          Serial.print("AT+HTTPDATA=");
+          delay(100);
+          uint16_t Size = 11;
+          Serial.print(Size);
+          Serial.print(",");
+          uint32_t maxTime = 30000;
+          Serial.println(maxTime);
+          Serial.findUntil("DOWNLOAD", "ERROR");
+          Serial.print("[{\"S\":\"");
+          // Serial.print(imei.c_str());
+          Serial.print("1\"}]");
+          Serial.findUntil("OK", "OK");
+        } else OkToSend = false;
       } else OkToSend = false;
     } else OkToSend = false;
-  } else OkToSend = false;
-  if (OkToSend) {
-    fireHttpAction(3500, "AT+HTTPACTION=", ",200,", "ERROR");
-  }
+    if (OkToSend) {
+      fireHttpAction(3500, "AT+HTTPACTION=", ",200,", "ERROR");
+    }
+  }gps();
 }
 bool httpPostCustom(char custom) {
   if(!ping){
@@ -523,10 +516,11 @@ bool getGnsStat() {
     return true;
   } else return false;
 }
-void badCharChecker(String data){
+bool badCharChecker(String data){
       for (int i = 0; i < strlen(data.c_str()); i++){   
-          if(!isAlphaNumeric(data.c_str()[i])&&(int(data.c_str()[i])!=45)&&(int(data.c_str()[i])!=46)){badCharCounter++;}
+          if((!isAlphaNumeric(data.c_str()[i])&&(int(data.c_str()[i])!=45)&&(int(data.c_str()[i])!=46))||((int(data.c_str()[i])==0))||((int(data.c_str()[i])==32))){badCharCounter++;}
         }
+        if (badCharCounter>0){badCharCounter=0;return false;}else{badCharCounter=0;return true;}
 }
 bool getGpsData() {
   fixStatus = gpsTime = latitude = longitude = used_satellites = viewed_satellites = speed = " ";
@@ -632,15 +626,15 @@ bool getGpsData() {
     //  uint8_t ind20 = gpsdatastr.indexOf(',', ind19 + 1);
     ////  String VPA = gpsdatastr.substring(ind19);
     //////////////////////////////////////////////////////////////////
-    badCharChecker(imei);
-    badCharChecker(fixStatus);
-    badCharChecker(latitude);
-    badCharChecker(longitude);
-    badCharChecker(speed);
-    badCharChecker(used_satellites);
-    badCharChecker(course);
-    badCharChecker(batteryLevel());
-    badCharChecker(lastUnixTime);
+    if ((imei.length()!=15)){imei="869170031000000";}
+    if ((fixStatus.length()!=1)){fixStatus="1";}
+    if ((latitude.length()!=10)){latitude="33.5619400";}
+    if ((longitude.length()!=11)){latitude="-7.63555500";}
+    if ((speed.length()!=6)){speed="000.00";}
+    if ((used_satellites.length()!=2)){used_satellites="01";}
+    if ((course.length()!=6)){course="0357.6";}
+    if ((lastUnixTime).length()!=10){lastUnixTime="1600000000";}
+    
  
     if (onOff) {/*trace(unixTimeInt, 1);*/onOff = false;}
      if ((fixStatus.toInt() == 1) && (latitude.toInt() > 20) && (longitude.toInt() < 0)&&(badCharCounter==0)&&(lastUnixTime!=previousUnixTime)) {
@@ -648,6 +642,7 @@ bool getGpsData() {
       started = false;
       restarted=false;
       insertMem();
+      getImei();
       return true;
     } else {return false;badCharCounter=0;} 
 }
@@ -685,32 +680,36 @@ uint8_t getGsmStat() {
   return gsmStat.toInt();
 }
 String batteryLevel() {
+  String batteryLevel="0";
   flushSim();
   Serial.setTimeout(1000);
-  Serial.println("AT+CBC");
-  String tempGSM = "0";
-  tempGSM=Serial.readString();
-  int ind1 = tempGSM.indexOf(',');
-  int ind2 = tempGSM.indexOf(',', ind1 + 1);
-  //String chargeState = tempGSM.substring( 1, ind1 + 1);
-  String batteryLevel = tempGSM.substring(ind1 + 1, ind2);
+  uint16_t waitInterval=2500;
+  currentMillis = millis();
+  previousMillis = millis();
+  while((Serial.println("AT+CBC")<=0)&&((currentMillis - previousMillis) <= waitInterval)){flushSim();currentMillis=millis();delay(1000);}
+  if ((currentMillis - previousMillis) <= waitInterval)
+  {
+    String tempGSM = "0";
+    tempGSM=Serial.readString();
+    int ind1 = tempGSM.indexOf(',');
+    int ind2 = tempGSM.indexOf(',', ind1 + 1);
+    //String chargeState = tempGSM.substring( 1, ind1 + 1);
+    batteryLevel = tempGSM.substring(ind1 + 1, ind2);
 
-  uint16_t vbat = batteryLevel.toInt();
+    uint16_t vbat = batteryLevel.toInt();
 
-  if (vbat >= 100) {
-    sprintf(batteryLevel.c_str(), "%d", vbat);
-  }
-  else if ((vbat < 100) && (vbat > 9)) {
-    sprintf(batteryLevel.c_str(), "0%d", vbat);
-  } else if (vbat < 10) {
-    char charbat[3] = {0};
-    itoa(vbat, charbat, 10);
-    sprintf(batteryLevel.c_str(), "00%d", vbat);
-  } else {
-    strcpy(batteryLevel.c_str(), "000");
-  }
-
-  return batteryLevel;
+    if (vbat >= 100) {
+      sprintf(batteryLevel.c_str(), "%d", vbat);
+    }
+    else if ((vbat < 100) && (vbat > 9)) {
+      sprintf(batteryLevel.c_str(), "0%d", vbat);
+    } else if (vbat < 10) {
+      char charbat[3] = {0};
+      itoa(vbat, charbat, 10);
+      sprintf(batteryLevel.c_str(), "00%d", vbat);
+    } else {strcpy(batteryLevel.c_str(), "000");}
+    return batteryLevel;
+  }else {strcpy(batteryLevel.c_str(), "001");return batteryLevel;} 
 }
 String rssiLevel() {
   flushSim();
@@ -735,15 +734,17 @@ String rssiLevel() {
   return String(charRSSI);
 }
 bool gprsOn() {
-  sendAtFram(5000, 31140, 9, "OK", "ERROR", 5); //"AT+CFUN=1"
-  sendAtFram(5000, 31184, 29, "OK", "OK", 5); //"AT+SAPBR=3,1,\"CONTYPE\",\"GPRS\""
-  if (sendAtFram(5000, 31213, 12, "OK", "OK", 5)) { //"AT+SAPBR=1,1"
-    if (sendAtFram(5000, 31225, 8, "OK", "ERROR", 5)) { //"AT+CIICR"
-      if (sendAtFram(5000, 31233, 8, ">", "ERROR", 5)) { //"AT+CIFSR"
-        return true;
+  if(gsmCheck(20000)){
+    sendAtFram(5000, 31140, 9, "OK", "ERROR", 5); //"AT+CFUN=1"
+    sendAtFram(5000, 31184, 29, "OK", "OK", 5); //"AT+SAPBR=3,1,\"CONTYPE\",\"GPRS\""
+    if (sendAtFram(5000, 31213, 12, "OK", "OK", 5)) { //"AT+SAPBR=1,1"
+      if (sendAtFram(5000, 31225, 8, "OK", "ERROR", 5)) { //"AT+CIICR"
+        if (sendAtFram(5000, 31233, 8, ">", "ERROR", 5)) { //"AT+CIFSR"
+          return true;
+        } else return false;
       } else return false;
     } else return false;
-  } else return false;
+  }
 }
 void gprsOff() {
   //if(getGprsState())
@@ -775,6 +776,8 @@ void writeDataFram(char* dataFram) {
   {
     delay(1);
     fram.write8(i, dataFram[(i - framWritePosition)]);
+    uint8_t test1 = fram.read8(i);
+    if (test1!=int(dataFram[(i - framWritePosition)])){fram.write8(i, 120);}
   } framWritePosition += (dataFramSize) ;
 }
 void writeDataFramDebug(char* dataFram, long p1) {
@@ -850,7 +853,7 @@ void clearMemoryDiff(int size, int size1) {
 }
 void clearMemoryDebug(unsigned long size) {
   for (uint16_t a = 32000; a < size; a++) {
-    fram.write8(a, "0");
+    fram.write8(a, 48);
   }
 }
 void insertMem() {
@@ -870,8 +873,13 @@ void insertMem() {
   writeDataFram(used_satellites.c_str());          {}   //2
   //getWriteFromFram(31108,7); //"\" Cap=\""
   writeDataFram(course.c_str());                  //6
+  
   //getWriteFromFram(31115,16); //"\" BatteryLevel=\""
   writeDataFram(batteryLevel().c_str());              //3
+  // writeDataFram("001");              //3
+  
+  
+  
   //getWriteFromFram(31131,6); //"\" Dh=\""
   writeDataFram(lastUnixTime.c_str());                  //10
   //getWriteFromFram(31137,3); //"\"/>"
